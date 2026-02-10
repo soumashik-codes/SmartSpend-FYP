@@ -1,0 +1,69 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Frontend (Next.js)
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+ /out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+.env.local
+.env.development
+.env.production
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+
+# Backend (Python / FastAPI)
+
+# virtual environments
+venv/
+.venv/
+env/
+
+# python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# sqlite databases
+*.db
+
+# fastapi cache
+.cache/
+
+# pip
+pip-log.txt
+pip-delete-this-directory.txt
