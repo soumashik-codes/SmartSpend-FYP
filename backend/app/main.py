@@ -8,9 +8,7 @@ from .transactions import router as transactions_router
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="SmartSpend API",
-    description="Backend API for SmartSpend",
-    version="1.0.0"
+    title="SmartSpend API", description="Backend API for SmartSpend", version="1.0.0"
 )
 
 app.add_middleware(
@@ -22,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(transactions_router)
+
 
 @app.get("/")
 def health_check():

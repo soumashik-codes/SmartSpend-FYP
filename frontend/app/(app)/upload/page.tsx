@@ -69,6 +69,7 @@ export default function UploadPage() {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      dynamicTyping: false,
 
       complete: (results) => {
         const parsedRows: TransactionRow[] = [];
@@ -77,71 +78,99 @@ export default function UploadPage() {
         (results.data as any[]).forEach((rawRow, index) => {
           const row: Record<string, any> = {};
 
+          // Normalize headers
           Object.keys(rawRow).forEach((key) => {
             row[normalizeHeader(key)] = rawRow[key];
           });
 
+          // Flexible date detection
           const date =
             row.date ||
             row.transactiondate ||
             row.bookingdate ||
-            row.posteddate;
+            row.posteddate ||
+            row.valuedate;
 
+          // Flexible description detection
           const description =
             row.description ||
             row.narrative ||
             row.details ||
             row.merchant ||
-            row.reference;
+            row.reference ||
+            row.payee;
 
           let amount: number | null = null;
 
-          // amount column
-          if (row.amount !== undefined) {
-            amount = toNumber(row.amount);
+          // Direct amount / value column
+          const rawValue =
+            row.amount ||
+            row.value ||
+            row.transactionamount;
+
+          if (rawValue !== undefined) {
+            const parsed = toNumber(rawValue);
+            if (!isNaN(parsed)) amount = parsed;
           }
 
-          // credit / debit
-          if (amount === null || isNaN(amount)) {
+          // Debit / Credit detection via type column
+          if (amount !== null && row.type) {
+            const type = String(row.type).toLowerCase();
+
+            if (type.includes("debit") || type.includes("out")) {
+              amount = -Math.abs(amount);
+            }
+
+            if (type.includes("credit") || type.includes("in")) {
+              amount = Math.abs(amount);
+            }
+          }
+
+          // Credit / Debit columns
+          if (amount === null) {
             const credit = toNumber(row.credit);
             const debit = toNumber(row.debit);
+
             if (!isNaN(credit) && credit > 0) amount = credit;
             else if (!isNaN(debit) && debit > 0) amount = -debit;
           }
 
-
-          // money in / out (bank-agnostic)
-          if (amount === null || isNaN(amount)) {
+          // Money in / out
+          if (amount === null) {
             const moneyIn =
               toNumber(row.moneyin) ||
-              toNumber(row.paidin) ||
-              toNumber(row.credit);
+              toNumber(row.paidin);
 
             const moneyOut =
               toNumber(row.moneyout) ||
-              toNumber(row.paidout) ||
-              toNumber(row.debit);
+              toNumber(row.paidout);
 
             if (!isNaN(moneyIn) && moneyIn > 0) amount = moneyIn;
             else if (!isNaN(moneyOut) && moneyOut > 0)
               amount = -moneyOut;
           }
 
+
+          // Final validation — skip silently instead of erroring
           if (!date || !description || amount === null || isNaN(amount)) {
-            parseErrors.push({
-              row: index + 2,
-              message: "Unsupported or invalid row",
-            });
             return;
           }
 
           parsedRows.push({
-            date: String(date),
-            description: String(description),
-            category: String(row.category || "Uncategorised"),
+            date: String(date).trim(),
+            description: String(description).trim(),
+            category: "Uncategorised",
             amount,
           });
         });
+
+        // Only show error if nothing valid found
+        if (parsedRows.length === 0) {
+          parseErrors.push({
+            message:
+              "No valid transactions detected. Please check the CSV format.",
+          });
+        }
 
         setRows(parsedRows);
         setErrors(parseErrors);
@@ -149,6 +178,7 @@ export default function UploadPage() {
       },
     });
   }
+
 
   /* ----------- Save & Analyse ----------- */
 
