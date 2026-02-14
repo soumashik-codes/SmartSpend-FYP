@@ -1,15 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import engine
-from . import models
-from .transactions import router as transactions_router
+from .database import Base, engine
+from .routers import auth, accounts, transactions
 
-models.Base.metadata.create_all(bind=engine)
+app = FastAPI(title="SmartSpend API")
 
-app = FastAPI(
-    title="SmartSpend API", description="Backend API for SmartSpend", version="1.0.0"
-)
+# Create tables fresh
+Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,9 +17,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(transactions_router)
+app.include_router(auth.router)
+app.include_router(accounts.router)
+app.include_router(transactions.router)
 
 
 @app.get("/")
-def health_check():
-    return {"status": "SmartSpend backend running"}
+def root():
+    return {"status": "ok"}

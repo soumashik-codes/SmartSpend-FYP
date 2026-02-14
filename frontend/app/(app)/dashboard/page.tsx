@@ -2,212 +2,218 @@
 
 import { useEffect, useState } from "react";
 import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
   ResponsiveContainer,
   XAxis,
   YAxis,
-  LineChart,
-  Line,
   CartesianGrid,
+  Tooltip,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
+import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
 
-const COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6"];
+const COLORS = ["#f59e0b", "#8b5cf6", "#3b82f6", "#ef4444", "#22c55e"];
 
 type Summary = {
+  account_id: number;
+  account_name: string;
+  opening_balance: number;
+  current_balance: number;
   total_income: number;
   total_expenses: number;
-  current_balance: number;
   transaction_count: number;
 };
 
-export default function DashboardPage() {
-  const [summary, setSummary] = useState<Summary>({
-    total_income: 0,
-    total_expenses: 0,
-    current_balance: 0,
-    transaction_count: 0,
-  });
+type BalancePoint = {
+  date: string;
+  balance: number;
+};
 
-  const [categoryData, setCategoryData] = useState<any[]>([]);
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [balanceData, setBalanceData] = useState<any[]>([]);
+type CategoryData = {
+  category: string;
+  total: number;
+};
+
+export default function DashboardPage() {
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [balanceData, setBalanceData] = useState<BalancePoint[]>([]);
+  const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
+  const [userName, setUserName] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchDashboardData() {
+    async function loadDashboard() {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        window.location.href = "/login";
+        return;
+      }
+
       try {
+        // 1️⃣ Get current user
+        const meRes = await fetch(
+          "http://127.0.0.1:8000/auth/me",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const me = await meRes.json();
+        setUserName(me.display_name?.split(" ")[0] || "User");
+
+        // 2️⃣ Get user's accounts
+        const accountsRes = await fetch(
+          "http://127.0.0.1:8000/accounts/",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const accounts = await accountsRes.json();
+
+        if (!accounts.length) {
+          setLoading(false);
+          return;
+        }
+
+        const accountId = accounts[0].id;
+
+        // 3️⃣ Fetch dashboard data
         const summaryRes = await fetch(
-          "http://127.0.0.1:8000/transactions/summary"
+          `http://127.0.0.1:8000/transactions/summary?account_id=${accountId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-        const summaryData = await summaryRes.json();
-        setSummary(summaryData);
-
-        const categoryRes = await fetch(
-          "http://127.0.0.1:8000/transactions/by-category"
-        );
-        const categoryJson = await categoryRes.json();
-        setCategoryData(categoryJson);
-
-        const recentRes = await fetch(
-          "http://127.0.0.1:8000/transactions/recent"
-        );
-        const recentJson = await recentRes.json();
-        setRecentTransactions(recentJson);
 
         const balanceRes = await fetch(
-          "http://127.0.0.1:8000/transactions/balance-over-time"
+          `http://127.0.0.1:8000/transactions/balance-history?account_id=${accountId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-        const balanceJson = await balanceRes.json();
-        setBalanceData(balanceJson);
-      } catch (error) {
-        console.error("Failed to load dashboard", error);
+
+        const categoryRes = await fetch(
+          `http://127.0.0.1:8000/transactions/by-category?account_id=${accountId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setSummary(await summaryRes.json());
+        setBalanceData(await balanceRes.json());
+        setCategoryData(await categoryRes.json());
+
+      } catch (err) {
+        console.error("Dashboard load error:", err);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchDashboardData();
+    loadDashboard();
   }, []);
 
-  if (loading) {
-    return <div className="p-8">Loading dashboard...</div>;
-  }
+  if (loading) return <div className="p-8 text-white">Loading...</div>;
+  if (!summary) return <div className="p-8 text-white">No account found.</div>;
 
   return (
-    <section className="p-8 space-y-8">
-      <h1 className="text-3xl font-semibold">Dashboard</h1>
+    <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0a1124] to-[#050816] text-white p-8 space-y-10">
+
+      {/* Dynamic Welcome */}
+      <div>
+        <h1 className="text-4xl font-bold">
+          Welcome back, {userName}
+        </h1>
+        <p className="text-gray-400 mt-2">
+          Here’s your financial overview
+        </p>
+      </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white border rounded-lg p-4">
-          <p className="text-sm text-gray-500">Current Balance</p>
-          <p className="text-xl font-semibold">
-            £{summary.current_balance?.toFixed(2)}
+      <div className="grid md:grid-cols-4 gap-6">
+
+        <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">
+          <div className="flex justify-between">
+            <p className="text-gray-400">Current Balance</p>
+            <Wallet size={20} />
+          </div>
+          <p className="text-2xl mt-4">
+            £{summary.current_balance.toLocaleString()}
           </p>
         </div>
 
-        <div className="bg-white border rounded-lg p-4">
-          <p className="text-sm text-gray-500">Total Income</p>
-          <p className="text-xl font-semibold text-green-600">
-            £{summary.total_income?.toFixed(2)}
+        <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">
+          <div className="flex justify-between">
+            <p className="text-gray-400">Total Income</p>
+            <TrendingUp className="text-green-400" size={20} />
+          </div>
+          <p className="text-2xl mt-4 text-green-400">
+            £{summary.total_income.toLocaleString()}
           </p>
         </div>
 
-        <div className="bg-white border rounded-lg p-4">
-          <p className="text-sm text-gray-500">Total Expenses</p>
-          <p className="text-xl font-semibold text-red-600">
-            £{summary.total_expenses?.toFixed(2)}
+        <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">
+          <div className="flex justify-between">
+            <p className="text-gray-400">Total Expenses</p>
+            <TrendingDown className="text-red-400" size={20} />
+          </div>
+          <p className="text-2xl mt-4 text-red-400">
+            £{summary.total_expenses.toLocaleString()}
           </p>
         </div>
 
-        <div className="bg-white border rounded-lg p-4">
-          <p className="text-sm text-gray-500">Transactions</p>
-          <p className="text-xl font-semibold">
+        <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">
+          <p className="text-gray-400">Transactions</p>
+          <p className="text-2xl mt-4">
             {summary.transaction_count}
           </p>
         </div>
       </div>
 
-      {/* Balance Over Time */}
-      <div className="bg-white border rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">
-          Balance Over Time
-        </h2>
+      {/* Charts */}
+      <div className="grid md:grid-cols-2 gap-8">
 
-        {balanceData.length === 0 ? (
-          <p className="text-gray-500">No balance data yet.</p>
-        ) : (
+        {/* Balance Trend */}
+        <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">
+          <h2 className="mb-4 font-semibold">Balance Trend</h2>
+
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={balanceData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
+            <AreaChart data={balanceData}>
+              <defs>
+                <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#00ffcc" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#00ffcc" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="#1f2c4d" strokeDasharray="3 3" />
+              <XAxis dataKey="date" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
               <Tooltip />
-              <Line
+              <Area
                 type="monotone"
                 dataKey="balance"
-                stroke="#3b82f6"
-                strokeWidth={3}
-                dot={false}
+                stroke="#00ffcc"
+                fill="url(#colorBalance)"
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
-        )}
-      </div>
+        </div>
 
-      {/* Spending by Category */}
-      <div className="bg-white border rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">
-          Spending by Category
-        </h2>
+        {/* Spending by Category */}
+        <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">
+          <h2 className="mb-4 font-semibold">Spending by Category</h2>
 
-        {categoryData.length === 0 ? (
-          <p className="text-gray-500">No spending data yet.</p>
-        ) : (
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
                 data={categoryData}
                 dataKey="total"
                 nameKey="category"
-                outerRadius={100}
-                label
+                innerRadius={70}
+                outerRadius={110}
               >
-                {categoryData.map((_, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                  />
+                {categoryData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
-        )}
-      </div>
+        </div>
 
-      {/* Recent Transactions */}
-      <div className="bg-white border rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">
-          Recent Transactions
-        </h2>
-
-        {recentTransactions.length === 0 ? (
-          <p className="text-gray-500">No transactions yet.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Date</th>
-                <th className="text-left py-2">Description</th>
-                <th className="text-left py-2">Category</th>
-                <th className="text-right py-2">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentTransactions.map((tx: any) => (
-                <tr key={tx.id} className="border-b">
-                  <td className="py-2">{tx.date}</td>
-                  <td className="py-2">{tx.description}</td>
-                  <td className="py-2">{tx.category}</td>
-                  <td
-                    className={`py-2 text-right ${
-                      tx.amount < 0
-                        ? "text-red-600"
-                        : "text-green-600"
-                    }`}
-                  >
-                    £{Number(tx.amount).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
       </div>
-    </section>
+    </div>
   );
 }

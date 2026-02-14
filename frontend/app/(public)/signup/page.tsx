@@ -5,38 +5,34 @@ import { useRouter } from "next/navigation";
 import { Wallet } from "lucide-react";
 import Link from "next/link";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    const formData = new URLSearchParams();
-    formData.append("username", email);
-    formData.append("password", password);
-
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/login", {
+      const res = await fetch("http://127.0.0.1:8000/auth/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formData.toString(),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: name,
+        }),
       });
 
-      if (!res.ok) throw new Error("Invalid email or password");
+      if (!res.ok) throw new Error("Failed to create account");
 
-      const data = await res.json();
-      localStorage.setItem("token", data.access_token);
-
-      router.push("/dashboard");
+      router.push("/login");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -49,7 +45,6 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md bg-[#0f1b33] border border-[#1f2c4d] rounded-2xl p-8 shadow-xl">
 
-        {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="bg-green-500/20 p-4 rounded-xl">
             <Wallet className="text-green-400" size={28} />
@@ -58,15 +53,27 @@ export default function LoginPage() {
             Smart<span className="text-green-400">Spend</span>
           </h1>
           <p className="text-gray-400 mt-2 text-sm">
-            Sign in to your account
+            Create your account
           </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form onSubmit={handleSignup} className="space-y-5">
 
           {error && (
             <p className="text-red-400 text-sm">{error}</p>
           )}
+
+          <div>
+            <label className="text-sm text-gray-400">Display Name</label>
+            <input
+              type="text"
+              placeholder="Your name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mt-2 w-full bg-[#0a1428] border border-[#1f2c4d] rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-400"
+            />
+          </div>
 
           <div>
             <label className="text-sm text-gray-400">Email</label>
@@ -97,14 +104,14 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-green-500 hover:bg-green-600 transition py-3 rounded-lg font-semibold"
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? "Creating account..." : "Create Account"}
           </button>
         </form>
 
         <p className="text-sm text-gray-400 mt-6 text-center">
-          Don't have an account?{" "}
-          <Link href="/signup" className="text-green-400 hover:underline">
-            Sign up
+          Already have an account?{" "}
+          <Link href="/login" className="text-green-400 hover:underline">
+            Sign in
           </Link>
         </p>
 

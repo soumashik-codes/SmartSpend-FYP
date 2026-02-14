@@ -1,30 +1,27 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // allow public pages
   const isPublic =
     pathname === "/" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon.ico") ||
-    pathname.startsWith("/public");
+    pathname.startsWith("/favicon.ico");
 
   if (isPublic) return NextResponse.next();
 
-  // protect app routes
-  const isAppRoute =
+  const isProtected =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/forecast") ||
     pathname.startsWith("/receipts") ||
     pathname.startsWith("/insights");
 
-  if (isAppRoute) {
-    const authCookie = request.cookies.get("smartspend-auth");
+  if (isProtected) {
+    const token = request.cookies.get("access_token");
 
-    if (!authCookie) {
+    if (!token) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       return NextResponse.redirect(url);
@@ -34,7 +31,6 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Tell Next.js which routes this applies to
 export const config = {
-  matcher: ["/dashboard/:path*", "/forecast/:path*", "/receipts/:path*", "/insights/:path*", "/login", "/"],
+  matcher: ["/dashboard/:path*", "/forecast/:path*", "/receipts/:path*", "/insights/:path*"],
 };

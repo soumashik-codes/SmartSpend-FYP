@@ -182,29 +182,59 @@ export default function UploadPage() {
 
   /* ----------- Save & Analyse ----------- */
 
-  async function saveAndAnalyse() {
-    setIsSaving(true);
-    setSuccess(false);
+async function saveAndAnalyse() {
+  setIsSaving(true);
+  setSuccess(false);
+  setErrors([]);
 
-    try {
-      const res = await fetch(
-        "http://127.0.0.1:8000/transactions/upload",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ transactions: rows }),
-        }
-      );
+  try {
+    const token = localStorage.getItem("token");
 
-      if (!res.ok) throw new Error("Upload failed");
-
-      setSuccess(true);
-    } catch {
-      setErrors([{ message: "Failed to save transactions" }]);
-    } finally {
-      setIsSaving(false);
+    if (!token) {
+      window.location.href = "/login";
+      return;
     }
+
+    // TEMP hardcoded account (same as dashboard)
+    const accountId = 1;
+
+    const res = await fetch(
+      "http://127.0.0.1:8000/transactions/upload",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          account_id: accountId,
+          transactions: rows.map((r) => ({
+            date: r.date,
+            description: r.description,
+            amount: r.amount,
+          })),
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Upload failed");
+    }
+
+    const result = await res.json();
+
+    setSuccess(true);
+    setRows([]);
+    setFileName("");
+
+    console.log("Upload result:", result);
+  } catch (err: any) {
+    setErrors([{ message: err.message || "Failed to save transactions" }]);
+  } finally {
+    setIsSaving(false);
   }
+}
 
   /* ================= UI ================= */
 
