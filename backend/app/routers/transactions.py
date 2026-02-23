@@ -85,7 +85,7 @@ def upload_transactions(
     if not cleaned:
         raise HTTPException(status_code=400, detail="No valid transactions provided")
 
-    # ✅ enforce chronological uploads
+    # enforce chronological uploads
     if last_tx:
         earliest_new_date = min(t[0] for t in cleaned)
         if earliest_new_date <= last_tx.date:
@@ -103,7 +103,7 @@ def upload_transactions(
         tx_type = "CREDIT" if amount > 0 else "DEBIT"
         running_balance = float(round(running_balance + amount, 2))
 
-        predicted = predict_category(description)
+        predicted = predict_category(description, amount)
 
         row = models.Transaction(
             account_id=account.id,

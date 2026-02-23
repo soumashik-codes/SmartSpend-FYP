@@ -53,3 +53,34 @@ class Transaction(Base):
     __table_args__ = (
         UniqueConstraint("account_id", "date", "description", "amount", name="uq_tx_dedupe"),
     )
+    
+class Receipt(Base):
+    __tablename__ = "receipts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+
+    merchant = Column(String, nullable=True)
+    receipt_date = Column(String, nullable=True)
+    total = Column(Float, nullable=True)
+
+    raw_text = Column(String, nullable=True)
+    image_filename = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    items = relationship("ReceiptItem", back_populates="receipt", cascade="all, delete-orphan")
+
+
+class ReceiptItem(Base):
+    __tablename__ = "receipt_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    receipt_id = Column(Integer, ForeignKey("receipts.id"), nullable=False)
+
+    name = Column(String, nullable=False)
+    qty = Column(Float, default=1.0)
+    unit_price = Column(Float, nullable=True)
+    line_total = Column(Float, nullable=True)
+
+    receipt = relationship("Receipt", back_populates="items")

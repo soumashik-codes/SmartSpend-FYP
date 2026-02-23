@@ -14,6 +14,7 @@ import {
   Cell,
 } from "recharts";
 import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { getDefaultAccountId } from "@/lib/api";
 
 const COLORS = ["#f59e0b", "#8b5cf6", "#3b82f6", "#ef4444", "#22c55e"];
 
@@ -59,21 +60,16 @@ export default function DashboardPage() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const me = await meRes.json();
-        setUserName(me.display_name?.split(" ")[0] || "User");
+        setUserName(me.full_name?.split(" ")[0] || "User");
 
-        // 2️⃣ Get user's accounts
-        const accountsRes = await fetch(
-          "http://127.0.0.1:8000/accounts/",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const accounts = await accountsRes.json();
+        // 2️⃣ Get default account safely
+        const accountId = await getDefaultAccountId();
 
-        if (!accounts.length) {
+        if (!accountId) {
+          setSummary(null);
           setLoading(false);
           return;
         }
-
-        const accountId = accounts[0].id;
 
         // 3️⃣ Fetch dashboard data
         const summaryRes = await fetch(
@@ -91,12 +87,19 @@ export default function DashboardPage() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
+        if (!summaryRes.ok) {
+          setSummary(null);
+          setLoading(false);
+          return;
+        }
+
         setSummary(await summaryRes.json());
         setBalanceData(await balanceRes.json());
         setCategoryData(await categoryRes.json());
 
       } catch (err) {
         console.error("Dashboard load error:", err);
+        setSummary(null);
       } finally {
         setLoading(false);
       }
@@ -165,7 +168,6 @@ export default function DashboardPage() {
       {/* Charts */}
       <div className="grid md:grid-cols-2 gap-8">
 
-        {/* Balance Trend */}
         <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">
           <h2 className="mb-4 font-semibold">Balance Trend</h2>
 
@@ -191,7 +193,6 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Spending by Category */}
         <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">
           <h2 className="mb-4 font-semibold">Spending by Category</h2>
 

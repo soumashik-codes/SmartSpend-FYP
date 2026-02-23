@@ -1,99 +1,91 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Upload,
+  ArrowLeftRight,
+  TrendingUp,
+  SlidersHorizontal,
   Receipt,
-  LineChart,
   Lightbulb,
-  Settings,
   LogOut,
+  Wallet,
+  CalculatorIcon
 } from "lucide-react";
 
 const navItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Upload Transactions", href: "/upload", icon: Upload },
-  { label: "Receipts", href: "/receipts", icon: Receipt },
-  { label: "Forecast", href: "/forecast", icon: LineChart },
-  { label: "Advisor", href: "/insights", icon: Lightbulb },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Transactions", href: "/transactions", icon: ArrowLeftRight },
+  { name: "Forecast", href: "/forecast", icon: TrendingUp },
+  { name: "What-If", href: "/what-if", icon: SlidersHorizontal },
+  { name: "Receipts", href: "/receipts", icon: Receipt },
+  { name: "Advisor", href: "/advisor", icon: Lightbulb },
+  {name: "Tax Estimator",href: "/tax-estimator",icon: CalculatorIcon}
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-
-  const handleLogout = () => {
-    document.cookie =
-      "smartspend-auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    router.push("/login");
-  };
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col justify-between min-h-screen">
-      
-      {/* Top section */}
+    <aside className="h-screen w-64 bg-[#0b1220] border-r border-[#1a2236] flex flex-col justify-between">
+
+      {/* Top Section */}
       <div>
         {/* Logo */}
-        <div className="px-6 py-5 border-b">
-          <h1 className="text-xl font-semibold">SmartSpend</h1>
-        </div>
-
-        {/* User (placeholder – replaced later with auth data) */}
-        <div className="flex items-center gap-3 px-6 py-4">
-          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center font-semibold text-blue-600">
-            A
+        <div className="flex items-center gap-3 px-6 py-6">
+          <div className="bg-emerald-500/15 p-2 rounded-lg">
+            <Wallet className="text-emerald-400" size={20} />
           </div>
-          <div>
-            <p className="text-sm font-medium">Alex Doe</p>
-            <p className="text-xs text-gray-500">alex@email.com</p>
-          </div>
+          <h1 className="text-lg font-semibold text-white tracking-tight">
+            Smart<span className="text-emerald-400">Spend</span>
+          </h1>
         </div>
 
         {/* Navigation */}
-        <nav className="mt-2 px-2">
+        <nav className="mt-4 flex flex-col gap-2 px-4">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname.startsWith(item.href);
+            const Icon = item.icon;
 
             return (
               <Link
-                key={item.label}
+                key={item.name}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition
+                className={`group flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200
                   ${
                     isActive
-                      ? "bg-blue-50 text-blue-600 font-medium"
-                      : "text-gray-700 hover:bg-gray-100"
+                      ? "bg-emerald-500/15 text-emerald-400"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
                   }
                 `}
               >
-                <item.icon className="h-4 w-4" />
-                {item.label}
+                <Icon size={18} />
+                {item.name}
               </Link>
             );
           })}
         </nav>
       </div>
 
-      {/* Bottom section */}
-      <div className="px-2 py-4 border-t">
-        <Link
-          href="/settings"
-          className="flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100"
-        >
-          <Settings className="h-4 w-4" />
-          Settings
-        </Link>
+      {/* Bottom User Card */}
+      <div className="border-t border-[#1a2236] p-5">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 flex items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 font-semibold">
+            RG
+          </div>
+          <div>
+            <p className="text-sm text-white font-medium">Rupert Griffin</p>
+            <p className="text-xs text-gray-400">test@gmail.com</p>
+          </div>
+        </div>
 
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50"
-        >
-          <LogOut className="h-4 w-4" />
-          Log Out
+        <button className="mt-5 flex items-center gap-2 text-sm text-gray-400 hover:text-red-400 transition">
+          <LogOut size={16} />
+          Log out
         </button>
       </div>
+
     </aside>
   );
 }

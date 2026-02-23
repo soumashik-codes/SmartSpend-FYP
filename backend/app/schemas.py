@@ -68,3 +68,31 @@ class UploadResult(BaseModel):
     duplicates_skipped: int
     opening_balance_used: float
     closing_balance: float
+
+class ReceiptItemOut(BaseModel):
+    name: str
+    qty: float
+    unit_price: Optional[float] = None
+    line_total: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ReceiptExtractOut(BaseModel):
+    merchant: Optional[str] = None
+    receipt_date: Optional[str] = None
+    total: Optional[float] = None
+    items: List[ReceiptItemOut] = []
+    raw_text: Optional[str] = None
+
+
+class ReceiptSummaryOut(BaseModel):
+    id: int
+    merchant: Optional[str] = None
+    receipt_date: Optional[str] = None
+    total: Optional[float] = None
+    created_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True

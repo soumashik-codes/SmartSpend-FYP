@@ -13,36 +13,64 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+ async function handleLogin(e: React.FormEvent) {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
 
-    const formData = new URLSearchParams();
-    formData.append("username", email);
-    formData.append("password", password);
+  const formData = new URLSearchParams();
+  formData.append("username", email);
+  formData.append("password", password);
 
-    try {
-      const res = await fetch("http://127.0.0.1:8000/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formData.toString(),
-      });
+  try {
+    const res = await fetch("http://127.0.0.1:8000/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: formData.toString(),
+    });
 
-      if (!res.ok) throw new Error("Invalid email or password");
-
-      const data = await res.json();
-      localStorage.setItem("token", data.access_token);
-
-      router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      throw new Error("Invalid email or password");
     }
+
+    const data = await res.json();
+
+    // Store token in cookie (middleware)
+    document.cookie = `token=${data.access_token}; path=/; SameSite=Lax`;
+
+    // Store token for API usage
+    localStorage.setItem("token", data.access_token);
+
+    // NEW: Fetch user's account automatically
+    const accountRes = await fetch("http://127.0.0.1:8000/accounts/", {
+      headers: {
+        Authorization: `Bearer ${data.access_token}`,
+      },
+    });
+
+    if (!accountRes.ok) {
+      throw new Error("Failed to fetch account");
+    }
+
+    const accounts = await accountRes.json();
+
+    if (accounts.length > 0) {
+      localStorage.setItem("account_id", accounts[0].id);
+    } else {
+      throw new Error("No account found for user");
+    }
+
+    router.push("/dashboard");
+
+  } catch (err: any) {
+    setError(err.message || "Login failed");
+  } finally {
+    setLoading(false);
   }
+}
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#050816] via-[#0a1124] to-[#050816] text-white">

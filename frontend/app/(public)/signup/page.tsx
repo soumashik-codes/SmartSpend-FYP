@@ -20,18 +20,86 @@ export default function SignupPage() {
     setError("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          password,
-          full_name: name,
-        }),
-      });
+      /* ================= REGISTER ================= */
 
-      if (!res.ok) throw new Error("Failed to create account");
+      const registerRes = await fetch(
+        "http://127.0.0.1:8000/auth/register",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            password,
+            full_name: name,
+          }),
+        }
+      );
 
+      if (!registerRes.ok)
+        throw new Error("Failed to create account");
+
+      /* ================= LOGIN ================= */
+
+      const formData = new URLSearchParams();
+      formData.append("username", email);
+      formData.append("password", password);
+
+      const loginRes = await fetch(
+        "http://127.0.0.1:8000/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/x-www-form-urlencoded",
+          },
+          body: formData.toString(),
+        }
+      );
+
+      if (!loginRes.ok)
+        throw new Error("Login failed");
+
+      const loginData = await loginRes.json();
+      const token = loginData.access_token;
+
+      localStorage.setItem("token", token);
+
+      /* ================= CREATE DEFAULT ACCOUNT ================= */
+
+      const accountRes = await fetch(
+        "http://127.0.0.1:8000/accounts/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: "Main Account",
+            opening_balance: 0,
+          }),
+        }
+      );
+
+      if (!accountRes.ok)
+        throw new Error("Failed to create user account");
+
+      const accountData = await accountRes.json();
+
+      /* =================  STORE ACCOUNT ID ================= */
+
+      localStorage.setItem(
+        "account_id",
+        accountData.id
+      );
+
+      /* =================  REDIRECT ================= */
+
+      // Clear any existing tokens (safety)
+      localStorage.removeItem("token");
+      document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+
+      // Redirect to login page
       router.push("/login");
     } catch (err: any) {
       setError(err.message);

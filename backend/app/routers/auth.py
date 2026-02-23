@@ -35,6 +35,17 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    # Automatically create default account
+    default_account = models.Account(
+        name="Main Account",
+        opening_balance=0,
+        current_balance=0,
+        user_id=user.id
+    )
+
+    db.add(default_account)
+    db.commit()
+
     return user
 
 
