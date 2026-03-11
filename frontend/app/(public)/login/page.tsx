@@ -41,7 +41,7 @@ export default function LoginPage() {
     document.cookie = `token=${data.access_token}; path=/; SameSite=Lax`;
 
     // Store token for API usage
-    localStorage.setItem("token", data.access_token);
+    localStorage.setItem("access_token", data.access_token);
 
     // NEW: Fetch user's account automatically
     const accountRes = await fetch("http://127.0.0.1:8000/accounts/", {

@@ -1,65 +1,109 @@
 import re
 from collections import defaultdict
+from typing import Optional
 
-CATEGORY_KEYWORDS = {
-    "Food": [
-        "KFC", "MCDONALD", "BURGER", "NANDO",
-        "PERI", "GRILL", "CHICKEN", "KEBAB",
-        "PIZZA", "TAKEAWAY", "CAFE", "COFFEE",
-        "RESTAURANT", "DINER", "SUBWAY",
-        "GREGGS", "DELIVEROO", "UBER EATS"
-    ],
+
+CATEGORY_PATTERNS = {
     "Groceries": [
-        "TESCO", "ALDI", "SAINSBURY", "ASDA",
-        "LIDL", "MART", "MINI", "MARKET",
-        "SUPERMARKET", "OFF LICENCE",
-        "COSTCUTTER", "FOOD CENTER"
+        "TESCO", "SAINSBURY", "SAINSBURYS", "ALDI", "ASDA", "LIDL",
+        "WAITROSE", "MORRISONS", "CO OP", "COOP", "ICELAND",
+        "MARKS SPENCER FOOD", "M&S FOOD", "WHOLE FOODS", "OCADO",
+        "FARMFOODS", "COSTCUTTER", "SUPERMARKET", "GROCERY"
+    ],
+    "Dining": [
+        "MCDONALD", "MCD", "KFC", "BURGER KING", "NANDO", "SUBWAY",
+        "PIZZA HUT", "DOMINOS", "PAPA JOHNS", "GREGGS", "PRET",
+        "STARBUCKS", "COSTA", "CAFE NERO", "RESTAURANT", "DINER",
+        "TAKEAWAY", "JUST EAT", "DELIVEROO", "UBER EATS", "EAT"
     ],
     "Transport": [
-        "TFL", "UBER", "BOLT", "TRAIN",
-        "RAIL", "BUS", "TRAVEL",
-        "STATION", "TICKET"
+        "UBER", "BOLT", "TFL", "TRAINLINE", "NATIONAL RAIL",
+        "SOUTHERN RAIL", "THAMESLINK", "BUS", "TRAVEL", "STATION",
+        "FUEL", "PETROL", "SHELL", "BP", "ESSO", "TEXACO", "PARKING",
+        "MOTORWAY", "ROAD TOLL", "TICKET"
     ],
-    "Subscription": [
-        "SPOTIFY", "NETFLIX", "PRIME",
-        "DISNEY", "APPLE", "CHATGPT"
+    "Entertainment": [
+        "NETFLIX", "SPOTIFY", "DISNEY", "YOUTUBE PREMIUM", "AMAZON PRIME",
+        "APPLE TV", "SKY", "NOW TV", "CINEMA", "ODEON", "VUE", "GAME",
+        "STEAM", "PLAYSTATION", "XBOX", "NINTENDO"
     ],
     "Shopping": [
-        "AMAZON", "EBAY", "H&M",
-        "ZARA", "PRIMARK", "WETHERSPOON"
+        "AMAZON", "EBAY", "ETSY", "SHOPIFY", "ZARA", "H&M", "HM",
+        "PRIMARK", "NEXT", "ASOS", "SHEIN", "TEMU", "TK MAXX",
+        "MARKS SPENCER", "M&S", "JOHN LEWIS", "ARGOS", "CURRYS"
     ],
     "Utilities": [
-        "GAS", "WATER", "ELECTRIC",
-        "VODAFONE", "EE", "O2",
-        "BILL", "MOBILE"
+        "BRITISH GAS", "OCTOPUS ENERGY", "EDF", "EON", "SCOTTISH POWER",
+        "THAMES WATER", "SEVERN TRENT", "VODAFONE", "VIRGIN MEDIA",
+        "BT", "EE", "O2", "THREE", "GAS", "WATER", "ELECTRIC",
+        "ENERGY", "BROADBAND", "MOBILE", "INTERNET", "COUNCIL TAX"
+    ],
+    "Housing": [
+        "RENT", "LANDLORD", "LETTINGS", "MORTGAGE", "LONDON HOMES",
+        "PROPERTY", "HOUSING", "ESTATE", "SERVICE CHARGE"
+    ],
+    "Healthcare": [
+        "NHS", "PHARMACY", "BOOTS", "SUPERDRUG", "DENTAL", "DENTIST",
+        "CLINIC", "DOCTOR", "HOSPITAL", "OPTICIAN", "VISION EXPRESS"
     ],
     "Fitness": [
-        "GYM", "PUREGYM", "JD GYM"
-    ]
+        "PUREGYM", "JD GYM", "GYM GROUP", "DAVID LLOYD", "FITNESS",
+        "GYM", "CROSSFIT", "PILATES", "YOGA"
+    ],
+    "Cash Withdrawal": [
+        "ATM", "CASH WITHDRAWAL", "CASH WD", "CASH MACHINE"
+    ],
+    "Bank Fees": [
+        "FEE", "CHARGE", "OVERDRAFT", "LATE PAYMENT", "INTEREST CHARGED"
+    ],
+    "Transfer": [
+        "TRANSFER", "BANK TRANSFER", "FASTER PAYMENT", "STANDING ORDER",
+        "DIRECT TRANSFER", "TO SAVINGS", "FROM SAVINGS"
+    ],
+    "Income": [
+        "SALARY", "PAYROLL", "PAYMENT FROM", "WAGE", "BONUS",
+        "EMPLOYER", "HMRC", "REFUND", "CASHBACK"
+    ],
 }
 
 
 def clean_description(text: str) -> str:
-    text = text.upper()
+    text = (text or "").upper()
     text = re.sub(r"\d+", " ", text)
     text = re.sub(r"[^A-Z\s]", " ", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
 
-def rule_based_category(description: str):
+def _matches_pattern(cleaned: str, pattern: str) -> bool:
+    tokens = pattern.split()
+    if not tokens:
+        return False
+
+    regex = r"\b" + r"\s+".join(re.escape(token) for token in tokens) + r"\b"
+    return re.search(regex, cleaned) is not None
+
+
+def _score_pattern_matches(cleaned: str) -> dict[str, int]:
+    scores: dict[str, int] = defaultdict(int)
+
+    for category, patterns in CATEGORY_PATTERNS.items():
+        for pattern in patterns:
+            if _matches_pattern(cleaned, pattern):
+                token_bonus = max(1, len(pattern.split()))
+                scores[category] += token_bonus
+
+    return scores
+
+
+def rule_based_category(description: str) -> Optional[str]:
     cleaned = clean_description(description)
-    words = cleaned.split()
+    if not cleaned:
+        return None
 
-    scores = defaultdict(int)
-
-    for category, keywords in CATEGORY_KEYWORDS.items():
-        for keyword in keywords:
-            if keyword in cleaned:
-                scores[category] += 1
-
+    scores = _score_pattern_matches(cleaned)
     if not scores:
         return None
 
-    # return category with highest score
-    return max(scores, key=scores.get)
+    best_category = max(scores, key=scores.get)
+    return best_category if scores[best_category] > 0 else None

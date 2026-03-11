@@ -47,7 +47,7 @@ export default function ForecastPage() {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("access_token");
       if (!token) {
         window.location.href = "/login";
         return;
@@ -125,7 +125,7 @@ export default function ForecastPage() {
   // no account / no data
   if (!data || !chartData.length) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0a1124] to-[#050816] text-white p-8">
+      <div className="text-white">
         <div className="flex items-start justify-between gap-6">
           <div>
             <h1 className="text-4xl font-bold">Financial Forecast</h1>
@@ -148,7 +148,7 @@ export default function ForecastPage() {
   const expectedGrowth = data.expected_growth ?? 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0a1124] to-[#050816] text-white p-8 space-y-8">
+    <div className="text-white space-y-8">
       {/* Header + period toggle */}
       <div className="flex items-start justify-between gap-6 flex-wrap">
         <div>

@@ -62,7 +62,7 @@ export default function SignupPage() {
       const loginData = await loginRes.json();
       const token = loginData.access_token;
 
-      localStorage.setItem("token", token);
+      localStorage.setItem("access_token", token);
 
       /* ================= CREATE DEFAULT ACCOUNT ================= */
 
@@ -96,7 +96,7 @@ export default function SignupPage() {
       /* =================  REDIRECT ================= */
 
       // Clear any existing tokens (safety)
-      localStorage.removeItem("token");
+      localStorage.removeItem("access_token");
       document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
 
       // Redirect to login page

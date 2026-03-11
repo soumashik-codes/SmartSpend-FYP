@@ -13,6 +13,7 @@ type Transaction = {
   date: string;
   description: string;
   amount: number;
+  balance?: number;
   category?: string;
 };
 
@@ -45,6 +46,12 @@ function detectSchema(headers: string[]) {
       "payee",
     ]),
     amountKey: find(["amount", "value", "transactionamount"]),
+    balanceKey: find([
+      "balance",
+      "runningbalance",
+      "closingbalance",
+      "accountbalance",
+    ]),
     debitKey: find(["debit"]),
     creditKey: find(["credit"]),
     moneyInKey: find(["moneyin", "paidin"]),
@@ -111,7 +118,7 @@ export default function TransactionsPage() {
   /* ================= FETCH FROM DB ================= */
 
   async function fetchTransactions() {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
     const accountId = await getDefaultAccountId();
 
     if (!accountId) {
@@ -160,6 +167,9 @@ export default function TransactionsPage() {
 
         data.forEach((row) => {
           const amount = resolveAmount(row, schema);
+          const balance = schema.balanceKey
+            ? cleanNumber(row[schema.balanceKey])
+            : NaN;
 
           if (
             !row[schema.dateKey!] ||
@@ -173,6 +183,7 @@ export default function TransactionsPage() {
             date: String(row[schema.dateKey!]).trim(),
             description: String(row[schema.descriptionKey!]).trim(),
             amount,
+            balance: !isNaN(balance) ? balance : undefined,
           });
         });
 
@@ -186,7 +197,7 @@ export default function TransactionsPage() {
   async function saveAndAnalyse() {
     setIsSaving(true);
 
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
     const accountId = await getDefaultAccountId();
 
     if (!accountId) {
@@ -195,7 +206,7 @@ export default function TransactionsPage() {
       return;
     }
 
-    await fetch("http://127.0.0.1:8000/transactions/upload", {
+    const res = await fetch("http://127.0.0.1:8000/transactions/upload", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -206,6 +217,12 @@ export default function TransactionsPage() {
         transactions: previewRows,
       }),
     });
+
+    const result = await res.json();
+
+    alert(
+      `Upload complete\n\n${result.imported} new transactions imported\n${result.duplicates_skipped} duplicates skipped`
+    );
 
     await fetchTransactions();
 

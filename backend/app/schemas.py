@@ -42,6 +42,7 @@ class TransactionIn(BaseModel):
     date: str
     description: str
     amount: float
+    balance: Optional[float] = None
 
 
 class TransactionUploadRequest(BaseModel):

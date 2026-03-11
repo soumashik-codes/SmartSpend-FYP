@@ -18,7 +18,7 @@ export default function ReceiptsPage() {
   async function handleUpload(file: File) {
     if (!file) return;
 
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
     if (!token) {
       window.location.href = "/login";
       return;
@@ -53,7 +53,7 @@ export default function ReceiptsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0a1124] to-[#050816] text-white p-8 space-y-10">
+    <div className="text-white space-y-10">
 
       {/* Header */}
       <div>

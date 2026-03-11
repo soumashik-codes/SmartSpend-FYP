@@ -1,21 +1,36 @@
 @import "tailwindcss";
 
-/* ===== Force SmartSpend Dark Fintech Theme ===== */
+/* SmartSpend Design System (Dark Fintech Theme) */
+
+:root {
+  /* Core Surfaces */
+  --app-bg: #0a1124;        /* Main background */
+  --card-bg: #0f1b33;       /* Cards / panels */
+  --border-color: #1a2236;  /* Borders / dividers */
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+
+  /* Accent */
+  --accent: #22c55e;        /* Green highlight */
+}
+
+/* Base Layout */
 
 html,
 body {
-  background-color: #0b1220; /* Deep navy base */
-  color: #e5e7eb; /* Soft light text */
+  background-color: var(--app-bg);
+  color: var(--text-primary);
   min-height: 100%;
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Remove default margins */
 body {
   margin: 0;
 }
 
-/* ===== SmartSpend Scrollbar ===== */
+/* Scrollbar Styling */
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -26,17 +41,16 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #1f2c4d;
+  background: var(--border-color);
   border-radius: 20px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #22c55e;
+  background: var(--accent);
 }
 
 /* Firefox */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #1f2c4d transparent;
+  scrollbar-color: var(--border-color) transparent;
 }
-
