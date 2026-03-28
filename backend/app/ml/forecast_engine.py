@@ -39,10 +39,14 @@ def run_sarimax_forecast(series_df, periods=6):
     if len(series) < 3:
         raise ValueError("Need at least 3 months of data for SARIMAX")
 
+    seasonal_order = (0, 0, 0, 0)
+    if len(series) >= 24:
+        seasonal_order = (1, 1, 1, 12)
+
     model = SARIMAX(
         series,
         order=(1, 1, 1),
-        seasonal_order=(1, 1, 1, 12),
+        seasonal_order=seasonal_order,
         enforce_stationarity=False,
         enforce_invertibility=False,
     )

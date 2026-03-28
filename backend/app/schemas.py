@@ -59,6 +59,9 @@ class TransactionOut(BaseModel):
     transaction_type: str
     category: Optional[str] = None
     balance_after: float
+    is_anomaly: bool = False
+    anomaly_score: Optional[float] = None
+    anomaly_reasons: List[str] = []
 
     class Config:
         from_attributes = True
@@ -97,3 +100,46 @@ class ReceiptSummaryOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TransactionUpdate(BaseModel):
+    category: str
+
+
+class WhatIfAdjustment(BaseModel):
+    category: str
+    change_pct: float
+
+
+class WhatIfRequest(BaseModel):
+    account_id: int
+    horizon_months: int = 6
+    adjustments: List[WhatIfAdjustment] = []
+
+
+class WhatIfCategoryOut(BaseModel):
+    category: str
+    label: str
+    monthly_amount: float
+    adjustment_pct: float
+
+
+class WhatIfPointOut(BaseModel):
+    date: str
+    baseline: float
+    adjusted: float
+
+
+class WhatIfSummaryOut(BaseModel):
+    monthly_change: float
+    horizon_impact: float
+    baseline_end_balance: float
+    adjusted_end_balance: float
+
+
+class WhatIfResponse(BaseModel):
+    horizon_months: int
+    current_balance: float
+    categories: List[WhatIfCategoryOut]
+    points: List[WhatIfPointOut]
+    summary: WhatIfSummaryOut

@@ -5,10 +5,12 @@ from typing import Optional
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
+from .merchant_normalizer import normalize_merchant
 from .rule_engine import rule_based_category
+from .llm_categorizer import llm_categorize
 
 
-MODEL_VERSION = "v2"
+MODEL_VERSION = "v1"
 MODEL_PATH = os.path.join(
     os.path.dirname(__file__),
     f"category_model_{MODEL_VERSION}.pkl",
@@ -47,6 +49,8 @@ TRAIN_DATA = [
     ("OCADO", "Groceries"),
     ("MARKS SPENCER FOOD", "Groceries"),
     ("ICELAND FOODS", "Groceries"),
+    ("SUPERMARKET", "Groceries"),
+    ("LOCAL SUPERMARKET", "Groceries"),
 
     ("MCDONALDS", "Dining"),
     ("KFC", "Dining"),
@@ -64,6 +68,14 @@ TRAIN_DATA = [
     ("DELIVEROO", "Dining"),
     ("JUST EAT", "Dining"),
     ("RESTAURANT", "Dining"),
+    ("KEBAB HOUSE", "Dining"),
+    ("LOCAL KEBAB HOUSE", "Dining"),
+    ("GRILL HOUSE", "Dining"),
+    ("SHISHA LOUNGE", "Dining"),
+    ("SHISHA BAR", "Dining"),
+    ("PIZZA SHOP", "Dining"),
+    ("FRIED CHICKEN", "Dining"),
+    ("TANDOORI HOUSE", "Dining"),
 
     ("UBER TRIP", "Transport"),
     ("BOLT TRIP", "Transport"),
@@ -89,6 +101,19 @@ TRAIN_DATA = [
     ("STEAM GAMES", "Entertainment"),
     ("PLAYSTATION", "Entertainment"),
 
+    ("HOLIDAY BOOKING", "Travel"),
+    ("BOOKING COM", "Travel"),
+    ("AIRBNB", "Travel"),
+    ("EXPEDIA", "Travel"),
+    ("EASYJET", "Travel"),
+    ("RYANAIR", "Travel"),
+    ("JET2", "Travel"),
+    ("BRITISH AIRWAYS", "Travel"),
+    ("HOTELS COM", "Travel"),
+    ("HOTEL STAY", "Travel"),
+    ("HOSTELWORLD", "Travel"),
+    ("CAR HIRE", "Travel"),
+
     ("AMAZON MARKETPLACE", "Shopping"),
     ("AMAZON PURCHASE", "Shopping"),
     ("EBAY", "Shopping"),
@@ -101,6 +126,19 @@ TRAIN_DATA = [
     ("CURRYS", "Shopping"),
     ("JOHN LEWIS", "Shopping"),
     ("ARGOS", "Shopping"),
+
+    ("BARBER SHOP", "Personal Care"),
+    ("HAIR SALON", "Personal Care"),
+    ("BEAUTY SALON", "Personal Care"),
+    ("NAIL BAR", "Personal Care"),
+    ("SPA TREATMENT", "Personal Care"),
+    ("TONI AND GUY", "Personal Care"),
+    ("SUPERCUTS", "Personal Care"),
+    ("SEPHORA", "Personal Care"),
+    ("SKINCARE PURCHASE", "Personal Care"),
+    ("COSMETICS", "Personal Care"),
+    ("MAKEUP STORE", "Personal Care"),
+    ("MASSAGE", "Personal Care"),
 
     ("PUREGYM", "Fitness"),
     ("JD GYM", "Fitness"),
@@ -132,6 +170,7 @@ TRAIN_DATA = [
     ("DENTAL CLINIC", "Healthcare"),
     ("HOSPITAL PAYMENT", "Healthcare"),
     ("OPTICIAN", "Healthcare"),
+    ("PHARMACY", "Healthcare"),
 
     ("ATM CASH WITHDRAWAL", "Cash Withdrawal"),
     ("CASH WITHDRAWAL", "Cash Withdrawal"),
@@ -199,8 +238,8 @@ def detect_transfer(description: str) -> Optional[str]:
     return None
 
 
-def ml_predict(description: str) -> Optional[str]:
-    cleaned = clean_text(description)
+def ml_predict(normalized_description: str) -> Optional[str]:
+    cleaned = clean_text(normalized_description)
     if not cleaned:
         return None
 
@@ -209,7 +248,7 @@ def ml_predict(description: str) -> Optional[str]:
         confidence = float(max(probs))
         prediction = str(model.classes_[probs.argmax()])
 
-        if confidence < 0.42:
+        if confidence < 0.55:
             return None
 
         return prediction
@@ -219,25 +258,33 @@ def ml_predict(description: str) -> Optional[str]:
 
 def predict_category(description: str, amount: float) -> str:
     try:
+        normalized_description = normalize_merchant(description)
+
         income_category = detect_income(description, amount)
         if income_category:
             return income_category
 
-        transfer_category = detect_transfer(description)
+        transfer_category = detect_transfer(normalized_description)
         if transfer_category and amount != 0:
             return transfer_category
 
-        rule_category = rule_based_category(description)
+        rule_category = rule_based_category(normalized_description)
         if rule_category:
             return rule_category
 
-        predicted = ml_predict(description)
+        predicted = ml_predict(normalized_description)
         if predicted:
             return predicted
+
+        # LLM fallback
+        llm_result = llm_categorize(normalized_description)
+        if llm_result:
+            return llm_result
 
         if amount > 0:
             return "Income"
 
-        return "Uncategorised"
+        return "Other"
+
     except Exception:
-        return "Uncategorised"
+        return "Other"

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey, UniqueConstraint, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
@@ -45,6 +45,8 @@ class Transaction(Base):
 
     category = Column(String, nullable=True)
     balance_after = Column(Float, nullable=False)
+    is_anomaly = Column(Boolean, nullable=False, default=False)
+    anomaly_score = Column(Float, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -53,6 +55,7 @@ class Transaction(Base):
     __table_args__ = (
         UniqueConstraint("account_id", "date", "description", "amount", name="uq_tx_dedupe"),
     )
+
     
 class Receipt(Base):
     __tablename__ = "receipts"

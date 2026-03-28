@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  ChevronDown,
   LayoutDashboard,
   ArrowLeftRight,
   TrendingUp,
@@ -14,6 +15,7 @@ import {
   Wallet,
   CalculatorIcon,
   Settings,
+  UserCircle2,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -26,7 +28,6 @@ const navItems = [
   { name: "Receipts", href: "/receipts", icon: Receipt },
   { name: "Advisor", href: "/advisor", icon: Lightbulb },
   { name: "Tax Estimator", href: "/tax-estimator", icon: CalculatorIcon },
-  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export default function Sidebar() {
@@ -35,6 +36,7 @@ export default function Sidebar() {
 
   const [user, setUser] = useState<any>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
   // ===============================
   // Fetch Logged-In User
@@ -71,6 +73,10 @@ export default function Sidebar() {
     fetchUser();
   }, [router]);
 
+  useEffect(() => {
+    setIsAccountMenuOpen(false);
+  }, [pathname, collapsed]);
+
   // ===============================
   // Generate Initials
   // ===============================
@@ -95,102 +101,136 @@ export default function Sidebar() {
   }
 
   return (
-    <aside
-      className={`h-screen ${
-        collapsed ? "w-20" : "w-64"
-      } bg-[var(--app-bg)] border-r border-[var(--border-color)] flex flex-col justify-between transition-all duration-300`}
-    >
-      {/* ===============================
-          TOP SECTION
-      =============================== */}
-      <div>
-        {/* Logo + Collapse Toggle */}
-        <div className="flex items-center justify-between px-6 py-6">
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-500/15 p-2 rounded-lg">
-              <Wallet className="text-emerald-400" size={20} />
+    <>
+      <div className={`h-screen shrink-0 transition-all duration-300 ${collapsed ? "w-20" : "w-64"}`} />
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 ${
+          collapsed ? "w-20" : "w-64"
+        } border-r border-[var(--border-color)] bg-[var(--app-bg)] flex flex-col justify-between transition-all duration-300`}
+      >
+        {/* ===============================
+            TOP SECTION
+        =============================== */}
+        <div>
+          {/* Logo + Collapse Toggle */}
+          <div className="flex items-center justify-between px-6 py-6">
+            <div className="flex items-center gap-3">
+              <div className="bg-emerald-500/15 p-2 rounded-lg">
+                <Wallet className="text-emerald-400" size={20} />
+              </div>
+
+              {!collapsed && (
+                <h1 className="text-lg font-semibold text-white tracking-tight">
+                  Smart
+                  <span className="text-emerald-400">
+                    Spend
+                  </span>
+                </h1>
+              )}
+            </div>
+
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="text-gray-400 hover:text-white transition"
+            >
+              {collapsed ? (
+                <ChevronRight size={18} />
+              ) : (
+                <ChevronLeft size={18} />
+              )}
+            </button>
+          </div>
+
+          {/* Navigation */}
+          <nav className="mt-4 flex flex-col gap-2 px-4">
+            {navItems.map((item) => {
+              const isActive =
+                pathname.startsWith(item.href);
+              const Icon = item.icon;
+
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`group flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200
+                    ${
+                      isActive
+                        ? "bg-emerald-500/15 text-emerald-400"
+                        : "text-gray-400 hover:text-white hover:bg-white/5"
+                    }
+                  `}
+                >
+                  <Icon size={18} />
+                  {!collapsed && item.name}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* ===============================
+            USER CARD
+        =============================== */}
+        <div className="relative border-t border-[var(--border-color)] p-5">
+          {!collapsed && isAccountMenuOpen ? (
+            <div className="absolute bottom-full left-5 right-5 mb-3 space-y-2 rounded-xl border border-[var(--border-color)] bg-[#151f38] p-2 shadow-2xl">
+              <Link
+                href="/settings#profile"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
+              >
+                <UserCircle2 size={16} />
+                Profile
+              </Link>
+              <Link
+                href="/settings"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
+              >
+                <Settings size={16} />
+                Settings
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-red-500/10 hover:text-red-300"
+              >
+                <LogOut size={16} />
+                Log out
+              </button>
+            </div>
+          ) : null}
+
+          <button
+            onClick={() => !collapsed && setIsAccountMenuOpen((current) => !current)}
+            className={`flex w-full items-center gap-3 rounded-xl text-left transition ${
+              collapsed
+                ? "justify-center"
+                : "bg-[#111831] px-3 py-2 hover:bg-white/5"
+            }`}
+          >
+            <div className="h-9 w-9 flex items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 font-semibold">
+              {user ? getInitials() : ""}
             </div>
 
             {!collapsed && (
-              <h1 className="text-lg font-semibold text-white tracking-tight">
-                Smart
-                <span className="text-emerald-400">
-                  Spend
-                </span>
-              </h1>
-            )}
-          </div>
-
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="text-gray-400 hover:text-white transition"
-          >
-            {collapsed ? (
-              <ChevronRight size={18} />
-            ) : (
-              <ChevronLeft size={18} />
+              <>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-white">
+                    {user?.full_name || "Loading..."}
+                  </p>
+                  <p className="truncate text-xs text-gray-400">
+                    {user?.email || "Fetching account..."}
+                  </p>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={`shrink-0 text-gray-500 transition ${
+                    isAccountMenuOpen ? "rotate-180 text-white" : ""
+                  }`}
+                />
+              </>
             )}
           </button>
         </div>
-
-        {/* Navigation */}
-        <nav className="mt-4 flex flex-col gap-2 px-4">
-          {navItems.map((item) => {
-            const isActive =
-              pathname.startsWith(item.href);
-            const Icon = item.icon;
-
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`group flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200
-                  ${
-                    isActive
-                      ? "bg-emerald-500/15 text-emerald-400"
-                      : "text-gray-400 hover:text-white hover:bg-white/5"
-                  }
-                `}
-              >
-                <Icon size={18} />
-                {!collapsed && item.name}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* ===============================
-          USER CARD
-      =============================== */}
-      <div className="border-t border-[var(--border-color)] p-5">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 flex items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 font-semibold">
-            {user ? getInitials() : ""}
-          </div>
-
-          {!collapsed && (
-            <div>
-              <p className="text-sm text-white font-medium">
-                {user?.full_name || "Loading..."}
-              </p>
-              <p className="text-xs text-gray-400">
-                {user?.email}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {!collapsed && (
-          <button
-            onClick={handleLogout}
-            className="mt-5 flex items-center gap-2 text-sm text-gray-400 hover:text-red-400 transition"
-          >
-            <LogOut size={16} />
-            Log out
-          </button>
-        )}
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

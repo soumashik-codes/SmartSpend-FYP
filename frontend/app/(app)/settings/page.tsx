@@ -82,7 +82,7 @@ export default function SettingsPage() {
       <h1 className="text-3xl font-bold">Settings</h1>
 
       {/* Profile */}
-      <div className="bg-[#0f1b33] p-6 rounded-xl space-y-4">
+      <div id="profile" className="scroll-mt-8 bg-[#0f1b33] p-6 rounded-xl space-y-4">
         <h2 className="text-xl font-semibold">Profile</h2>
 
         <input
@@ -100,7 +100,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Change Password */}
-      <div className="bg-[#0f1b33] p-6 rounded-xl space-y-4">
+      <div id="security" className="scroll-mt-8 bg-[#0f1b33] p-6 rounded-xl space-y-4">
         <h2 className="text-xl font-semibold">Change Password</h2>
 
         <input
@@ -128,7 +128,10 @@ export default function SettingsPage() {
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-[#1a0f18] p-6 rounded-xl space-y-4 border border-red-500/40">
+      <div
+        id="danger-zone"
+        className="scroll-mt-8 bg-[#1a0f18] p-6 rounded-xl space-y-4 border border-red-500/40"
+      >
         <h2 className="text-xl font-semibold text-red-400">Danger Zone</h2>
 
         <button

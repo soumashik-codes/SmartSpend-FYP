@@ -11,10 +11,11 @@ CATEGORY_PATTERNS = {
         "FARMFOODS", "COSTCUTTER", "SUPERMARKET", "GROCERY"
     ],
     "Dining": [
-        "MCDONALD", "MCD", "KFC", "BURGER KING", "NANDO", "SUBWAY",
+        "MCDONALD", "MCD", "KFC", "BURGER KING", "NANDO", "NANDOS", "SUBWAY",
         "PIZZA HUT", "DOMINOS", "PAPA JOHNS", "GREGGS", "PRET",
         "STARBUCKS", "COSTA", "CAFE NERO", "RESTAURANT", "DINER",
-        "TAKEAWAY", "JUST EAT", "DELIVEROO", "UBER EATS", "EAT"
+        "TAKEAWAY", "JUST EAT", "DELIVEROO", "UBER EATS", "EAT",
+        "KEBAB", "GRILL", "SHISHA", "BBQ", "PIZZA", "CHICKEN", "TANDOORI"
     ],
     "Transport": [
         "UBER", "BOLT", "TFL", "TRAINLINE", "NATIONAL RAIL",
@@ -26,6 +27,11 @@ CATEGORY_PATTERNS = {
         "NETFLIX", "SPOTIFY", "DISNEY", "YOUTUBE PREMIUM", "AMAZON PRIME",
         "APPLE TV", "SKY", "NOW TV", "CINEMA", "ODEON", "VUE", "GAME",
         "STEAM", "PLAYSTATION", "XBOX", "NINTENDO"
+    ],
+    "Travel": [
+        "HOLIDAY", "BOOKING", "AIRBNB", "EXPEDIA", "EASYJET", "RYANAIR",
+        "JET", "BRITISH AIRWAYS", "HOTEL", "HOSTEL", "FLIGHT", "FERRY",
+        "BAGGAGE", "AIRPORT PARKING", "CAR HIRE", "VISA FEE", "TRAVEL AGENCY"
     ],
     "Shopping": [
         "AMAZON", "EBAY", "ETSY", "SHOPIFY", "ZARA", "H&M", "HM",
@@ -45,6 +51,11 @@ CATEGORY_PATTERNS = {
     "Healthcare": [
         "NHS", "PHARMACY", "BOOTS", "SUPERDRUG", "DENTAL", "DENTIST",
         "CLINIC", "DOCTOR", "HOSPITAL", "OPTICIAN", "VISION EXPRESS"
+    ],
+    "Personal Care": [
+        "BARBER", "HAIR SALON", "BEAUTY SALON", "NAIL", "SPA", "WAXING",
+        "THREADING", "SKINCARE", "COSMETICS", "MAKEUP", "TOILETRIES",
+        "MASSAGE", "GROOMING", "TANNING", "TONI", "SUPERCUTS", "SEPHORA"
     ],
     "Fitness": [
         "PUREGYM", "JD GYM", "GYM GROUP", "DAVID LLOYD", "FITNESS",

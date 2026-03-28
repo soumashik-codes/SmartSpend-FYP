@@ -10,6 +10,7 @@ from sqlalchemy import func, case
 from ..database import get_db
 from .. import models, schemas
 from ..security import decode_token
+from ..ml.anomaly_detector import detect_expense_anomalies
 from ..ml.categorizer import predict_category
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
@@ -44,6 +45,42 @@ def get_account_owned(db: Session, user_id: int, account_id: int) -> models.Acco
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     return account
+
+
+def refresh_account_anomalies(db: Session, account_id: int):
+    account_transactions = (
+        db.query(models.Transaction)
+        .filter(models.Transaction.account_id == account_id)
+        .order_by(models.Transaction.date.asc(), models.Transaction.id.asc())
+        .all()
+    )
+
+    results = detect_expense_anomalies(account_transactions)
+
+    for transaction in account_transactions:
+        if float(transaction.amount) >= 0:
+            transaction.is_anomaly = False
+            transaction.anomaly_score = None
+            continue
+
+        result = results.get(transaction.id)
+        if result is None:
+            transaction.is_anomaly = False
+            transaction.anomaly_score = None
+            continue
+
+        transaction.is_anomaly = result.is_anomaly
+        transaction.anomaly_score = result.anomaly_score
+
+
+def attach_anomaly_reasons(transactions: list[models.Transaction]) -> list[models.Transaction]:
+    results = detect_expense_anomalies(transactions)
+
+    for transaction in transactions:
+        result = results.get(transaction.id)
+        transaction.anomaly_reasons = result.reasons if result else []
+
+    return transactions
 
 
 @router.post("/upload", response_model=schemas.UploadResult)
@@ -128,6 +165,7 @@ def upload_transactions(
             running_balance = prev_running_balance
 
     account.current_balance = float(round(running_balance, 2))
+    refresh_account_anomalies(db, account.id)
     db.commit()
 
     return {
@@ -147,12 +185,48 @@ def get_transactions(
     user = get_current_user(db, token)
     account = get_account_owned(db, user.id, account_id)
 
-    return (
+    transactions = (
         db.query(models.Transaction)
         .filter(models.Transaction.account_id == account.id)
         .order_by(models.Transaction.date.desc(), models.Transaction.id.desc())
         .all()
     )
+
+    return attach_anomaly_reasons(transactions)
+
+
+@router.patch("/{transaction_id}", response_model=schemas.TransactionOut)
+def update_transaction_category(
+    transaction_id: int,
+    payload: schemas.TransactionUpdate,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    user = get_current_user(db, token)
+
+    transaction = (
+        db.query(models.Transaction)
+        .join(models.Account, models.Transaction.account_id == models.Account.id)
+        .filter(models.Transaction.id == transaction_id, models.Account.user_id == user.id)
+        .first()
+    )
+
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    transaction.category = payload.category.strip() or transaction.category
+    refresh_account_anomalies(db, transaction.account_id)
+    db.commit()
+    db.refresh(transaction)
+    account_transactions = (
+        db.query(models.Transaction)
+        .filter(models.Transaction.account_id == transaction.account_id)
+        .order_by(models.Transaction.date.desc(), models.Transaction.id.desc())
+        .all()
+    )
+    attach_anomaly_reasons(account_transactions)
+    transaction = next((item for item in account_transactions if item.id == transaction.id), transaction)
+    return transaction
 
 
 @router.get("/summary")
@@ -181,6 +255,9 @@ def get_account_summary(
 
     total_income = sum(t.amount for t in transactions if t.amount > 0)
     total_expenses = sum(t.amount for t in transactions if t.amount < 0)
+    unusual_transaction_count = sum(
+        1 for t in transactions if t.amount < 0 and bool(getattr(t, "is_anomaly", False))
+    )
 
     count = len(transactions)
 
@@ -202,6 +279,7 @@ def get_account_summary(
         "total_income": float(round(total_income, 2)),
         "total_expenses": float(round(abs(total_expenses), 2)),
         "transaction_count": count,
+        "unusual_transaction_count": unusual_transaction_count,
         "date_from": str(first_tx.date) if first_tx else None,
         "date_to": str(last_tx.date) if last_tx else None,
     }
@@ -285,7 +363,7 @@ def get_spending_by_category(
 
     return [
         {
-            "category": r.category or "Uncategorised",
+            "category": r.category or "Other",
             "total": float(abs(r.total)),
         }
         for r in results
