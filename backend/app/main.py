@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .database import Base, engine, ensure_sqlite_transaction_columns
-from .routers import auth, accounts, transactions, forecast, receipts, tax
+from .routers import auth, accounts, transactions, forecast, receipts, tax, advisor
 
 app = FastAPI(title="SmartSpend API")
 
@@ -26,6 +26,7 @@ app.include_router(transactions.router)
 app.include_router(forecast.router)
 app.include_router(receipts.router)
 app.include_router(tax.router)
+app.include_router(advisor.router)
 
 @app.get("/")
 def root():

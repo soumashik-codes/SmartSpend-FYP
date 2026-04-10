@@ -38,7 +38,7 @@ const FEATURES = [
   {
     icon: SlidersHorizontal,
     title: "What-If Simulator",
-    desc: "Model scenarios like salary changes or new subscriptions before committing.",
+    desc: "Model spending scenarios before making financial decisions.",
   },
   {
     icon: Shield,

@@ -8,7 +8,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { getDefaultAccountId } from "@/lib/api";
+import {
+  buildApiUrl,
+  getAccessToken,
+  getDefaultAccountId,
+  setStoredAccountId,
+} from "@/lib/api";
 import { ImportSummary } from "./components/ImportSummary";
 import { TransactionReviewPanel } from "./components/TransactionReviewPanel";
 import { TransactionsFilters } from "./components/TransactionsFilters";
@@ -26,24 +31,33 @@ import {
 export default function TransactionsPage() {
   const [previewRows, setPreviewRows] = useState<Transaction[]>([]);
   const [savedRows, setSavedRows] = useState<Transaction[]>([]);
-  const [subscriptionMonthly, setSubscriptionMonthly] = useState(0);
   const [search, setSearch] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [importSummary, setImportSummary] = useState<ImportSummaryData | null>(null);
   const [activeFilter, setActiveFilter] = useState("all");
   const [selectedTransaction, setSelectedTransaction] = useState<DecoratedTransaction | null>(null);
   const [categoryDraft, setCategoryDraft] = useState("Other");
+  const [applyToFutureMerchant, setApplyToFutureMerchant] = useState(false);
+  const [applyToAllMerchant, setApplyToAllMerchant] = useState(false);
   const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState("");
+  const [pageError, setPageError] = useState("");
+  const [uploadInfo, setUploadInfo] = useState("");
+  const [uploadFileName, setUploadFileName] = useState("");
+  const [uploadRawCsv, setUploadRawCsv] = useState("");
+  const [isResettingAccount, setIsResettingAccount] = useState(false);
   const tableRef = useRef<HTMLDivElement | null>(null);
 
   async function getRequestContext() {
-    const token = localStorage.getItem("access_token");
+    const token = getAccessToken();
     const accountId = await getDefaultAccountId();
 
     if (!accountId) {
-      alert("No account selected.");
+      setPageError("No account is available for this session.");
       return null;
     }
+
+    setStoredAccountId(accountId);
 
     return { token, accountId };
   }
@@ -55,25 +69,7 @@ export default function TransactionsPage() {
     }
 
     const response = await fetch(
-      `http://127.0.0.1:8000/transactions/?account_id=${requestContext.accountId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${requestContext.token}`,
-        },
-      },
-    );
-
-    return (await response.json()) as Transaction[];
-  }
-
-  async function requestSubscriptions(context?: { token: string | null; accountId: number }) {
-    const requestContext = context ?? (await getRequestContext());
-    if (!requestContext) {
-      return 0;
-    }
-
-    const response = await fetch(
-      `http://127.0.0.1:8000/transactions/subscriptions?account_id=${requestContext.accountId}`,
+      buildApiUrl(`/transactions/?account_id=${requestContext.accountId}`),
       {
         headers: {
           Authorization: `Bearer ${requestContext.token}`,
@@ -82,38 +78,44 @@ export default function TransactionsPage() {
     );
 
     if (!response.ok) {
-      return 0;
+      throw new Error("Unable to load transactions for this account.");
     }
 
-    const data = (await response.json()) as { total_monthly?: number };
-    return Number(data.total_monthly ?? 0);
+    return (await response.json()) as Transaction[];
   }
 
   const loadInitialTransactions = useEffectEvent(async () => {
     const context = await getRequestContext();
     if (!context) {
-      return { transactions: [], subscriptionsTotal: 0 };
+      return { transactions: [] };
     }
 
-    const [transactions, subscriptionsTotal] = await Promise.all([
-      requestTransactions(context),
-      requestSubscriptions(context),
-    ]);
+    const transactions = await requestTransactions(context);
 
-    return { transactions, subscriptionsTotal };
+    return { transactions };
   });
 
   useEffect(() => {
     let isCancelled = false;
 
     async function loadTransactions() {
-      const { transactions, subscriptionsTotal } = await loadInitialTransactions();
+      try {
+        const { transactions } = await loadInitialTransactions();
 
-      if (!isCancelled) {
-        startTransition(() => {
-          setSavedRows(transactions);
-          setSubscriptionMonthly(subscriptionsTotal);
-        });
+        if (!isCancelled) {
+          startTransition(() => {
+            setSavedRows(transactions);
+            setPageError("");
+          });
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setPageError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load your transactions right now.",
+          );
+        }
       }
     }
 
@@ -126,6 +128,7 @@ export default function TransactionsPage() {
 
   async function saveAndAnalyse() {
     setIsSaving(true);
+    setPageError("");
 
     const context = await getRequestContext();
     if (!context) {
@@ -133,42 +136,129 @@ export default function TransactionsPage() {
       return;
     }
 
+    if (!previewRows.length) {
+      setPageError("Upload a valid CSV preview before saving.");
+      setIsSaving(false);
+      return;
+    }
+
     const previousIds = new Set(savedRows.map((row) => row.id).filter(Boolean));
+    try {
+      const response = await fetch(buildApiUrl("/transactions/upload"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${context.token}`,
+        },
+        body: JSON.stringify({
+          account_id: context.accountId,
+          file_name: uploadFileName || undefined,
+          raw_csv: uploadRawCsv || undefined,
+          transactions: previewRows,
+        }),
+      });
 
-    const response = await fetch("http://127.0.0.1:8000/transactions/upload", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${context.token}`,
-      },
-      body: JSON.stringify({
-        account_id: context.accountId,
-        transactions: previewRows,
-      }),
-    });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.detail || "Unable to import this CSV file.");
+      }
 
-    const result = await response.json();
-    const [refreshedRows, subscriptionsTotal] = await Promise.all([
-      requestTransactions(context),
-      requestSubscriptions(context),
-    ]);
-    setSavedRows(refreshedRows);
-    setSubscriptionMonthly(subscriptionsTotal);
-    const importedRows = refreshedRows.filter((row) => row.id && !previousIds.has(row.id));
-    const importedDecorated = importedRows.map((row) => ({
-      ...row,
-      ai: getAiInsight(row),
-    }));
-    const needsReview = importedDecorated.filter((row) => row.ai.needsReview).length;
+      const refreshedRows = await requestTransactions(context);
+      setSavedRows(refreshedRows);
+      const importedRows = refreshedRows.filter((row) => row.id && !previousIds.has(row.id));
+      const importedDecorated = importedRows.map((row) => ({
+        ...row,
+        ai: getAiInsight(row),
+      }));
+      const needsReview = importedDecorated.filter((row) => row.ai.needsReview).length;
 
-    setImportSummary({
-      imported: result.imported ?? importedRows.length,
-      categorized: Math.max((result.imported ?? importedRows.length) - needsReview, 0),
-      needsReview,
-    });
+      setImportSummary({
+        imported: result.imported ?? importedRows.length,
+        categorized: Math.max((result.imported ?? importedRows.length) - needsReview, 0),
+        needsReview,
+        rowsReceived: result.rows_received ?? previewRows.length,
+        duplicatesSkipped: result.duplicates_skipped ?? 0,
+        openingBalanceUsed: result.opening_balance_used,
+        closingBalance: result.closing_balance,
+        fileName: result.file_name ?? uploadFileName,
+        importId: result.import_id,
+        importStatus: result.import_status ?? "completed",
+      });
 
-    setPreviewRows([]);
-    setIsSaving(false);
+      setUploadInfo(
+        [
+          "File uploaded successfully.",
+          "Import recorded.",
+          `${result.rows_received ?? previewRows.length} rows received.`,
+          `${result.imported ?? importedRows.length} new transactions added.`,
+          `${result.duplicates_skipped ?? 0} duplicates skipped.`,
+        ].join(" "),
+      );
+      setPreviewRows([]);
+      setUploadRawCsv("");
+    } catch (error) {
+      setPageError(
+        error instanceof Error ? error.message : "Unable to import transactions right now.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function clearAllTransactionsForAccount() {
+    const context = await getRequestContext();
+    if (!context) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "This will permanently delete all transactions and import history for this account, and reset the account balance to its opening balance. Do you want to continue?",
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsResettingAccount(true);
+    setPageError("");
+
+    try {
+      const response = await fetch(
+        buildApiUrl(`/transactions/reset-account?account_id=${context.accountId}`),
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${context.token}`,
+          },
+        },
+      );
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.detail || "Unable to clear this account right now.");
+      }
+
+      setSavedRows([]);
+      setPreviewRows([]);
+      setImportSummary(null);
+      setSelectedTransaction(null);
+      setCategoryDraft("Other");
+      setApplyToFutureMerchant(false);
+      setApplyToAllMerchant(false);
+      setSearch("");
+      setActiveFilter("all");
+      setUploadFileName("");
+      setUploadRawCsv("");
+      setSaveFeedback("");
+      setUploadInfo(
+        `Account reset complete. ${result.deleted_transactions ?? 0} transactions removed and ${result.deleted_imports ?? 0} import records deleted.`,
+      );
+    } catch (error) {
+      setPageError(
+        error instanceof Error ? error.message : "Unable to clear this account right now.",
+      );
+    } finally {
+      setIsResettingAccount(false);
+    }
   }
 
   const decoratedRows = useMemo(
@@ -233,16 +323,45 @@ export default function TransactionsPage() {
     return top ? top[0] : "None";
   }, [filteredRows]);
 
+  const largestExpense = useMemo(() => {
+    const expenses = filteredRows.filter((row) => row.amount < 0);
+    const largest = expenses.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))[0];
+
+    if (!largest) {
+      return {
+        amount: 0,
+        category: "No expenses",
+      };
+    }
+
+    return {
+      amount: Math.abs(largest.amount),
+      category: largest.ai.category,
+    };
+  }, [filteredRows]);
+
   async function updateCategory() {
     if (!selectedTransaction?.id) {
       return;
     }
 
+    const hasCategoryChanged = categoryDraft !== selectedTransaction.ai.category;
+    if (!hasCategoryChanged && !applyToFutureMerchant && !applyToAllMerchant) {
+      return;
+    }
+
     setIsUpdatingCategory(true);
-    const token = localStorage.getItem("access_token");
+    setSaveFeedback("");
+    const token = getAccessToken();
+    const context = await getRequestContext();
+
+    if (!context) {
+      setIsUpdatingCategory(false);
+      return;
+    }
 
     const response = await fetch(
-      `http://127.0.0.1:8000/transactions/${selectedTransaction.id}`,
+      buildApiUrl(`/transactions/${selectedTransaction.id}`),
       {
         method: "PATCH",
         headers: {
@@ -251,32 +370,51 @@ export default function TransactionsPage() {
         },
         body: JSON.stringify({
           category: categoryDraft,
+          apply_to_future_merchant: applyToFutureMerchant,
+          apply_to_all_merchant: applyToAllMerchant,
         }),
       },
     );
 
     if (!response.ok) {
-      alert("Unable to update category.");
+      setPageError("Unable to update the category right now.");
       setIsUpdatingCategory(false);
       return;
     }
 
     const updated = await response.json();
-    setSavedRows((current) => current.map((row) => (row.id === updated.id ? updated : row)));
+    const refreshedRows = await requestTransactions(context);
+
+    setSavedRows(refreshedRows);
 
     const decorated = {
-      ...updated,
-      ai: getAiInsight(updated),
+      ...(refreshedRows.find((row) => row.id === updated.id) ?? updated),
+      ai: getAiInsight(refreshedRows.find((row) => row.id === updated.id) ?? updated),
     };
 
     setSelectedTransaction(decorated);
     setCategoryDraft(displayCategory(updated.category));
+    setApplyToFutureMerchant(false);
+    setApplyToAllMerchant(false);
+    setSaveFeedback("Category updated successfully.");
     setIsUpdatingCategory(false);
   }
 
   function openReviewPanel(transaction: DecoratedTransaction) {
     setSelectedTransaction(transaction);
     setCategoryDraft(transaction.ai.category);
+    setApplyToFutureMerchant(false);
+    setApplyToAllMerchant(false);
+    setSaveFeedback("");
+    setPageError("");
+  }
+
+  function closeReviewPanel() {
+    setSelectedTransaction(null);
+    setCategoryDraft("Other");
+    setApplyToFutureMerchant(false);
+    setApplyToAllMerchant(false);
+    setSaveFeedback("");
   }
 
   function reviewImportedTransactions() {
@@ -286,13 +424,43 @@ export default function TransactionsPage() {
 
   return (
     <div className="p-8 text-white">
-      <h1 className="text-3xl font-semibold">Transactions</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-3xl font-semibold">Transactions</h1>
+        <button
+          type="button"
+          onClick={clearAllTransactionsForAccount}
+          disabled={isResettingAccount}
+          className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isResettingAccount ? "Clearing..." : "Clear All Transactions For This Account"}
+        </button>
+      </div>
 
       <UploadCard
         previewRows={previewRows}
-        onPreviewReady={setPreviewRows}
+        onPreviewReady={(rows) => {
+          setPreviewRows(rows);
+          setImportSummary(null);
+          setPageError("");
+          setUploadInfo(
+            rows.length
+              ? `${rows.length} valid transactions are ready to import for the current account.`
+              : "",
+          );
+        }}
+        onFileMetaReady={({ fileName, rawCsv }) => {
+          setUploadFileName(fileName);
+          setUploadRawCsv(rawCsv);
+        }}
         onSave={saveAndAnalyse}
         isSaving={isSaving}
+        errorMessage={pageError}
+        infoMessage={uploadInfo}
+        onError={(message) => {
+          setPageError(message);
+          setUploadInfo("");
+          setImportSummary(null);
+        }}
       />
 
       {importSummary ? (
@@ -305,9 +473,11 @@ export default function TransactionsPage() {
       {savedRows.length > 0 ? (
         <div ref={tableRef} className="mt-10 space-y-6">
           <TransactionsStats
+            transactionCount={filteredRows.length}
             totalSpent={totalSpent}
             topCategory={topCategory}
-            subscriptionMonthly={subscriptionMonthly}
+            largestExpenseAmount={largestExpense.amount}
+            largestExpenseCategory={largestExpense.category}
           />
 
           <div className="rounded-xl border border-[#1f2c4d] bg-[#0f1b33] p-6">
@@ -327,9 +497,14 @@ export default function TransactionsPage() {
         transaction={selectedTransaction}
         categoryDraft={categoryDraft}
         onCategoryDraftChange={setCategoryDraft}
-        onClose={() => setSelectedTransaction(null)}
+        applyToFutureMerchant={applyToFutureMerchant}
+        onApplyToFutureMerchantChange={setApplyToFutureMerchant}
+        applyToAllMerchant={applyToAllMerchant}
+        onApplyToAllMerchantChange={setApplyToAllMerchant}
+        onClose={closeReviewPanel}
         onSave={updateCategory}
         isUpdatingCategory={isUpdatingCategory}
+        saveFeedback={saveFeedback}
       />
     </div>
   );

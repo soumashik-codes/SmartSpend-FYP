@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { buildApiUrl, clearStoredAccountId, getAccessToken } from "@/lib/api";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -8,13 +9,11 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
-  const token = typeof window !== "undefined"
-    ? localStorage.getItem("access_token")
-    : null;
+  const token = getAccessToken();
 
   useEffect(() => {
     async function fetchUser() {
-      const res = await fetch("http://127.0.0.1:8000/auth/me", {
+      const res = await fetch(buildApiUrl("/auth/me"), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -28,7 +27,7 @@ export default function SettingsPage() {
   }, []);
 
   async function updateProfile() {
-    await fetch("http://127.0.0.1:8000/auth/update-profile", {
+    await fetch(buildApiUrl("/auth/update-profile"), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -41,7 +40,7 @@ export default function SettingsPage() {
   }
 
   async function changePassword() {
-    const res = await fetch("http://127.0.0.1:8000/auth/change-password", {
+    const res = await fetch(buildApiUrl("/auth/change-password"), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -66,7 +65,7 @@ export default function SettingsPage() {
   async function deleteAccount() {
     if (!confirm("Are you sure? This cannot be undone.")) return;
 
-    await fetch("http://127.0.0.1:8000/auth/delete-account", {
+    await fetch(buildApiUrl("/auth/delete-account"), {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -74,6 +73,7 @@ export default function SettingsPage() {
     });
 
     localStorage.removeItem("access_token");
+    clearStoredAccountId();
     window.location.href = "/login";
   }
 

@@ -19,6 +19,17 @@ export function TransactionsTable({
   rows,
   onSelectTransaction,
 }: TransactionsTableProps) {
+  if (!rows.length) {
+    return (
+      <div className="mt-6 rounded-2xl border border-dashed border-[#1f2c4d] bg-[#0a1428] p-8 text-center">
+        <p className="text-base font-medium text-white">No transactions match this view</p>
+        <p className="mt-2 text-sm text-slate-400">
+          Try a different search term or filter to see more results.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-6 max-h-[560px] overflow-y-auto custom-scrollbar">
       <table className="w-full text-sm">

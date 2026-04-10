@@ -8,23 +8,33 @@ import { formatCurrency, formatDate, parseTransactionsCsv, type Transaction } fr
 type UploadCardProps = {
   previewRows: Transaction[];
   onPreviewReady: (rows: Transaction[]) => void;
+  onFileMetaReady?: (meta: { fileName: string; rawCsv: string }) => void;
   onSave: () => Promise<void>;
   isSaving: boolean;
+  errorMessage?: string;
+  infoMessage?: string;
+  onError?: (message: string) => void;
 };
 
 export function UploadCard({
   previewRows,
   onPreviewReady,
+  onFileMetaReady,
   onSave,
   isSaving,
+  errorMessage,
+  infoMessage,
+  onError,
 }: UploadCardProps) {
   const inputId = useId();
   const [fileName, setFileName] = useState("");
   const [isParsing, setIsParsing] = useState(false);
 
-  function handleFile(file: File) {
+  async function handleFile(file: File) {
     setFileName(file.name);
     setIsParsing(true);
+    const rawCsv = await file.text();
+    onFileMetaReady?.({ fileName: file.name, rawCsv });
 
     Papa.parse(file, {
       header: true,
@@ -37,17 +47,19 @@ export function UploadCard({
         } catch (error) {
           const message =
             error instanceof Error ? error.message : "Unable to parse this CSV file.";
-          alert(message);
+          onError?.(message);
           setFileName("");
           onPreviewReady([]);
+          onFileMetaReady?.({ fileName: "", rawCsv: "" });
         } finally {
           setIsParsing(false);
         }
       },
       error: () => {
-        alert("Unable to parse this CSV file.");
+        onError?.("Unable to parse this CSV file.");
         setFileName("");
         onPreviewReady([]);
+        onFileMetaReady?.({ fileName: "", rawCsv: "" });
         setIsParsing(false);
       },
     });
@@ -64,7 +76,7 @@ export function UploadCard({
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) {
-              handleFile(file);
+              void handleFile(file);
             }
           }}
         />
@@ -85,6 +97,8 @@ export function UploadCard({
         </label>
 
         {fileName ? <p className="mt-6 text-emerald-400">Uploaded: {fileName}</p> : null}
+        {infoMessage ? <p className="mt-4 text-sm text-slate-400">{infoMessage}</p> : null}
+        {errorMessage ? <p className="mt-4 text-sm text-red-400">{errorMessage}</p> : null}
       </div>
 
       {previewRows.length > 0 ? (

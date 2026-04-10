@@ -14,7 +14,12 @@ import {
   ReferenceLine,
 } from "recharts";
 import { RotateCcw, SlidersHorizontal } from "lucide-react";
-import { getDefaultAccountId } from "@/lib/api";
+import {
+  buildApiUrl,
+  getAccessToken,
+  getDefaultAccountId,
+  setStoredAccountId,
+} from "@/lib/api";
 
 type WhatIfCategory = {
   category: string;
@@ -42,6 +47,7 @@ type WhatIfResponse = {
   categories: WhatIfCategory[];
   points: WhatIfPoint[];
   summary: WhatIfSummary;
+  debug_month_count_used?: number;
 };
 
 const HORIZON_OPTIONS = [
@@ -76,8 +82,8 @@ function renderForecastTooltip({
   label,
 }: {
   active?: boolean;
-  payload?: Array<{ payload?: WhatIfPoint }>;
-  label?: string;
+  payload?: ReadonlyArray<{ payload?: WhatIfPoint }>;
+  label?: string | number;
 }) {
   if (!active || !payload?.length) {
     return null;
@@ -99,7 +105,9 @@ function renderForecastTooltip({
         boxShadow: "0 10px 30px rgba(2, 6, 23, 0.35)",
       }}
     >
-      <p className="text-2xl font-medium text-white">{formatMonthLabel(label ?? point.date)}</p>
+      <p className="text-2xl font-medium text-white">
+        {formatMonthLabel(String(label ?? point.date))}
+      </p>
       <div className="mt-3 space-y-2 text-lg">
         <p className="text-slate-300">Baseline : {formatCurrency(point.baseline)}</p>
         <p className="text-emerald-400">Adjusted : {formatCurrency(point.adjusted)}</p>
@@ -119,7 +127,7 @@ export default function WhatIfPage() {
     setLoading(true);
     setError("");
 
-    const token = localStorage.getItem("access_token");
+    const token = getAccessToken();
     if (!token) {
       window.location.href = "/login";
       return;
@@ -128,13 +136,15 @@ export default function WhatIfPage() {
     const accountId = await getDefaultAccountId();
     if (!accountId) {
       setSimulation(null);
-      setError("No account found. Upload transactions first.");
+      setError("No account available. Sign in again or upload transactions first.");
       setLoading(false);
       return;
     }
 
+    setStoredAccountId(accountId);
+
     try {
-      const response = await fetch("http://127.0.0.1:8000/forecast/what-if", {
+      const response = await fetch(buildApiUrl("/forecast/what-if"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -203,6 +213,7 @@ export default function WhatIfPage() {
   const summary = simulation?.summary;
   const hasActiveAdjustments = Object.values(adjustments).some((value) => value !== 0);
   const activeComparisonDate = chartData.length > 1 ? chartData[1].date : chartData[0]?.date;
+  const hasAdjustableCategories = categories.length > 0;
 
   if (loading && !simulation) {
     return <div className="p-8 text-white">Loading What-If simulator...</div>;
@@ -212,7 +223,7 @@ export default function WhatIfPage() {
     return (
       <div className="p-8 text-white">
         <h1 className="text-3xl font-semibold">What-If Simulator</h1>
-        <p className="mt-3 text-red-400">{error}</p>
+        <p className="mt-3 max-w-2xl text-red-400">{error}</p>
       </div>
     );
   }
@@ -223,11 +234,15 @@ export default function WhatIfPage() {
         <div>
           <h1 className="text-4xl font-bold">What-If Simulator</h1>
           <p className="mt-2 text-gray-400">
-            Adjust real spending categories and see how they affect your forecasted balance.
+            Estimate how changing recent spending patterns could affect your forecasted balance.
+          </p>
+          <p className="mt-2 max-w-3xl text-sm text-slate-500">
+            This simulation uses your recent category spending and the current forecast baseline.
+            It is a planning estimate, not a guaranteed prediction.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-end gap-3">
           <div className="rounded-xl border border-[#1f2c4d] bg-[#0f1b33] p-1">
             {HORIZON_OPTIONS.map((option) => (
               <button
@@ -263,45 +278,60 @@ export default function WhatIfPage() {
                 <SlidersHorizontal size={18} className="text-emerald-400" />
                 <h2 className="text-xl font-semibold">Adjust Spending</h2>
               </div>
+              <p className="mt-2 text-sm text-slate-400">
+                Monthly amounts are estimated from recent saved expense history for your account.
+              </p>
+              {simulation.debug_month_count_used ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  Based on {simulation.debug_month_count_used} recent expense month
+                  {simulation.debug_month_count_used === 1 ? "" : "s"}.
+                </p>
+              ) : null}
 
-              <div className="mt-6 space-y-6">
-                {categories.map((category) => {
-                  const sliderValue = adjustments[category.category] ?? 0;
+              {hasAdjustableCategories ? (
+                <div className="mt-6 space-y-6">
+                  {categories.map((category) => {
+                    const sliderValue = adjustments[category.category] ?? 0;
 
-                  return (
-                    <div key={category.category}>
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-lg font-medium text-white">{category.label}</p>
-                          <p className="mt-1 text-sm text-slate-400">
-                            {formatCurrency(category.monthly_amount)} / month
+                    return (
+                      <div key={category.category}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-lg font-medium text-white">{category.label}</p>
+                            <p className="mt-1 text-sm text-slate-400">
+                              {formatCurrency(category.monthly_amount)} / month
+                            </p>
+                          </div>
+                          <p className="text-sm font-medium text-cyan-200">
+                            {sliderValue > 0 ? `+${sliderValue}%` : `${sliderValue}%`}
                           </p>
                         </div>
-                        <p className="text-sm font-medium text-cyan-200">
-                          {sliderValue > 0 ? `+${sliderValue}%` : `${sliderValue}%`}
-                        </p>
-                      </div>
 
-                      <input
-                        type="range"
-                        min={-50}
-                        max={50}
-                        step={1}
-                        value={sliderValue}
-                        onChange={(event) =>
-                          handleAdjustmentChange(category.category, Number(event.target.value))
-                        }
-                        className="mt-4 h-2 w-full cursor-pointer appearance-none rounded-full bg-[#1b2434] accent-emerald-400"
-                      />
+                        <input
+                          type="range"
+                          min={-50}
+                          max={50}
+                          step={1}
+                          value={sliderValue}
+                          onChange={(event) =>
+                            handleAdjustmentChange(category.category, Number(event.target.value))
+                          }
+                          className="mt-4 h-2 w-full cursor-pointer appearance-none rounded-full bg-[#1b2434] accent-emerald-400"
+                        />
 
-                      <div className="mt-2 flex items-center justify-between text-sm text-slate-500">
-                        <span>-50%</span>
-                        <span>+50%</span>
+                        <div className="mt-2 flex items-center justify-between text-sm text-slate-500">
+                          <span>-50%</span>
+                          <span>+50%</span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mt-6 rounded-xl border border-[#1f2c4d] bg-[#091326] px-4 py-4 text-sm text-slate-400">
+                  No recent adjustable spending categories were found for this account yet.
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-[#1f2c4d] bg-[#0f1b33] p-6">
@@ -309,7 +339,7 @@ export default function WhatIfPage() {
 
               <div className="mt-5 space-y-4 text-sm">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-slate-400">Monthly change</span>
+                  <span className="text-slate-400">Estimated monthly balance change</span>
                   <span
                     className={`font-semibold ${
                       (summary?.monthly_change ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"
@@ -319,7 +349,7 @@ export default function WhatIfPage() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-slate-400">{months}-month impact</span>
+                  <span className="text-slate-400">{months}-month estimated impact</span>
                   <span
                     className={`font-semibold ${
                       (summary?.horizon_impact ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"
@@ -345,7 +375,10 @@ export default function WhatIfPage() {
           </div>
 
           <div className="rounded-2xl border border-[#1f2c4d] bg-[#0f1b33] p-6">
-            <h2 className="text-xl font-semibold">Forecast Comparison</h2>
+            <h2 className="text-xl font-semibold">Simulated Forecast Comparison</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              Baseline forecast versus a simulated scenario using your slider adjustments.
+            </p>
 
             <div className="mt-6 h-[520px] rounded-2xl border border-[#16284a] bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_42%),linear-gradient(180deg,_rgba(5,14,35,0.78),_rgba(3,10,24,0.96))] p-5">
               <ResponsiveContainer width="100%" height="100%">
@@ -420,7 +453,7 @@ export default function WhatIfPage() {
 
       {loading && simulation ? (
         <div className="rounded-2xl border border-[#1f2c4d] bg-[#0f1b33] px-4 py-3 text-sm text-slate-400">
-          Recalculating forecast...
+          Recalculating simulation...
         </div>
       ) : null}
 

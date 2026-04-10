@@ -5,6 +5,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+ENABLE_LLM_CATEGORIZER = os.getenv("ENABLE_LLM_CATEGORIZER", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 CATEGORIES = [
     "Groceries",
@@ -27,6 +33,9 @@ CATEGORIES = [
 
 
 def llm_categorize(description: str):
+    if not ENABLE_LLM_CATEGORIZER:
+        return None
+
     if not GROQ_API_KEY:
         print("LLM ERROR: GROQ_API_KEY not found")
         return None

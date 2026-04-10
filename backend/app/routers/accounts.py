@@ -33,6 +33,15 @@ def list_accounts(token: str = Depends(oauth2_scheme), db: Session = Depends(get
 def create_account(payload: schemas.AccountCreate, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     user = get_current_user(db, token)
 
+    existing_account = (
+        db.query(models.Account)
+        .filter(models.Account.user_id == user.id)
+        .order_by(models.Account.id.asc())
+        .first()
+    )
+    if existing_account:
+        return existing_account
+
     account = models.Account(
         user_id=user.id,
         name=payload.name,

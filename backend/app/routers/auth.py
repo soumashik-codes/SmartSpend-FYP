@@ -37,9 +37,9 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    # Automatically create default account
+    # Automatically create the single SmartSpend account for this user.
     default_account = models.Account(
-        name="Main Account",
+        name="SmartSpend Account",
         opening_balance=0,
         current_balance=0,
         user_id=user.id,

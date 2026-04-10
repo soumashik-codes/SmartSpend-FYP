@@ -31,6 +31,45 @@ class Account(Base):
     transactions = relationship("Transaction", back_populates="account", cascade="all, delete-orphan")
 
 
+class MerchantCategoryOverride(Base):
+    __tablename__ = "merchant_category_overrides"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    merchant_key = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "merchant_key", name="uq_user_merchant_override"),
+    )
+
+
+class TransactionImport(Base):
+    __tablename__ = "transaction_imports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    file_name = Column(String, nullable=True)
+    file_hash = Column(String, nullable=False, index=True)
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    rows_received = Column(Integer, nullable=False, default=0)
+    rows_inserted = Column(Integer, nullable=False, default=0)
+    rows_skipped_duplicates = Column(Integer, nullable=False, default=0)
+    status = Column(String, nullable=False, default="completed")
+    date_from = Column(Date, nullable=True)
+    date_to = Column(Date, nullable=True)
+    error_message = Column(String, nullable=True)
+
+    account = relationship("Account")
+    transactions = relationship("Transaction", back_populates="import_record")
+
+    __table_args__ = (
+        UniqueConstraint("account_id", "file_hash", name="uq_transaction_import_account_hash"),
+    )
+
+
 class Transaction(Base):
     __tablename__ = "transactions"
 
@@ -44,17 +83,17 @@ class Transaction(Base):
     transaction_type = Column(String, nullable=False)  # CREDIT/DEBIT
 
     category = Column(String, nullable=True)
+    category_source = Column(String, nullable=False, default="system")
     balance_after = Column(Float, nullable=False)
+    source_fingerprint = Column(String, nullable=False, index=True)
+    import_id = Column(Integer, ForeignKey("transaction_imports.id"), nullable=True, index=True)
     is_anomaly = Column(Boolean, nullable=False, default=False)
     anomaly_score = Column(Float, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
     account = relationship("Account", back_populates="transactions")
-
-    __table_args__ = (
-        UniqueConstraint("account_id", "date", "description", "amount", name="uq_tx_dedupe"),
-    )
+    import_record = relationship("TransactionImport", back_populates="transactions")
 
     
 class Receipt(Base):

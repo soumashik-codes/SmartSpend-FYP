@@ -5,7 +5,8 @@ from typing import Optional
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
-from .merchant_normalizer import normalize_merchant
+from .. import models
+from .merchant_normalizer import canonicalize_merchant, normalize_merchant
 from .rule_engine import rule_based_category
 from .llm_categorizer import llm_categorize
 
@@ -256,13 +257,48 @@ def ml_predict(normalized_description: str) -> Optional[str]:
         return None
 
 
-def predict_category(description: str, amount: float) -> str:
+def get_user_override_category(db, user_id: int, normalized_description: str) -> Optional[str]:
+    if db is None or not user_id or not normalized_description:
+        return None
+
+    override = (
+        db.query(models.MerchantCategoryOverride)
+        .filter(
+            models.MerchantCategoryOverride.user_id == user_id,
+            models.MerchantCategoryOverride.merchant_key == normalized_description,
+        )
+        .first()
+    )
+    if override:
+        return override.category
+
+    canonical_description = canonicalize_merchant(normalized_description)
+    if canonical_description != normalized_description:
+        override = (
+            db.query(models.MerchantCategoryOverride)
+            .filter(
+                models.MerchantCategoryOverride.user_id == user_id,
+                models.MerchantCategoryOverride.merchant_key == canonical_description,
+            )
+            .first()
+        )
+        if override:
+            return override.category
+
+    return None
+
+
+def predict_category(description: str, amount: float, db=None, user_id: int | None = None) -> str:
     try:
         normalized_description = normalize_merchant(description)
 
         income_category = detect_income(description, amount)
         if income_category:
             return income_category
+
+        override_category = get_user_override_category(db, user_id or 0, normalized_description)
+        if override_category:
+            return override_category
 
         transfer_category = detect_transfer(normalized_description)
         if transfer_category and amount != 0:

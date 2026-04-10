@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet } from "lucide-react";
 import Link from "next/link";
+import { buildApiUrl, clearStoredAccountId } from "@/lib/api";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -20,10 +21,8 @@ export default function SignupPage() {
     setError("");
 
     try {
-      /* ================= REGISTER ================= */
-
       const registerRes = await fetch(
-        "http://127.0.0.1:8000/auth/register",
+        buildApiUrl("/auth/register"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -37,69 +36,9 @@ export default function SignupPage() {
 
       if (!registerRes.ok)
         throw new Error("Failed to create account");
-
-      /* ================= LOGIN ================= */
-
-      const formData = new URLSearchParams();
-      formData.append("username", email);
-      formData.append("password", password);
-
-      const loginRes = await fetch(
-        "http://127.0.0.1:8000/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/x-www-form-urlencoded",
-          },
-          body: formData.toString(),
-        }
-      );
-
-      if (!loginRes.ok)
-        throw new Error("Login failed");
-
-      const loginData = await loginRes.json();
-      const token = loginData.access_token;
-
-      localStorage.setItem("access_token", token);
-
-      /* ================= CREATE DEFAULT ACCOUNT ================= */
-
-      const accountRes = await fetch(
-        "http://127.0.0.1:8000/accounts/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name: "Main Account",
-            opening_balance: 0,
-          }),
-        }
-      );
-
-      if (!accountRes.ok)
-        throw new Error("Failed to create user account");
-
-      const accountData = await accountRes.json();
-
-      /* =================  STORE ACCOUNT ID ================= */
-
-      localStorage.setItem(
-        "account_id",
-        accountData.id
-      );
-
-      /* =================  REDIRECT ================= */
-
-      // Clear any existing tokens (safety)
       localStorage.removeItem("access_token");
+      clearStoredAccountId();
       document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-
-      // Redirect to login page
       router.push("/login");
     } catch (err: any) {
       setError(err.message);

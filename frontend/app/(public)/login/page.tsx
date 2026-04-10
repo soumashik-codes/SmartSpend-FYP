@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet } from "lucide-react";
 import Link from "next/link";
+import { buildApiUrl, clearStoredAccountId, setStoredAccountId } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function LoginPage() {
   formData.append("password", password);
 
   try {
-    const res = await fetch("http://127.0.0.1:8000/auth/login", {
+    const res = await fetch(buildApiUrl("/auth/login"), {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -44,7 +45,7 @@ export default function LoginPage() {
     localStorage.setItem("access_token", data.access_token);
 
     // NEW: Fetch user's account automatically
-    const accountRes = await fetch("http://127.0.0.1:8000/accounts/", {
+    const accountRes = await fetch(buildApiUrl("/accounts/"), {
       headers: {
         Authorization: `Bearer ${data.access_token}`,
       },
@@ -57,7 +58,8 @@ export default function LoginPage() {
     const accounts = await accountRes.json();
 
     if (accounts.length > 0) {
-      localStorage.setItem("account_id", accounts[0].id);
+      clearStoredAccountId();
+      setStoredAccountId(Number(accounts[0].id));
     } else {
       throw new Error("No account found for user");
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
-import type { ImportSummary as ImportSummaryData } from "./shared";
+import { formatCurrency, type ImportSummary as ImportSummaryData } from "./shared";
 
 type ImportSummaryProps = {
   summary: ImportSummaryData;
@@ -31,7 +31,7 @@ export function ImportSummary({ summary, onReviewTransactions }: ImportSummaryPr
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
           <div className="flex items-center gap-3 text-emerald-300">
             <CheckCircle2 size={18} />
-            <span>{summary.imported} transactions imported</span>
+            <span>{summary.imported} new transactions added</span>
           </div>
         </div>
         <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-4">
@@ -46,6 +46,39 @@ export function ImportSummary({ summary, onReviewTransactions }: ImportSummaryPr
             <span>{summary.needsReview} need review</span>
           </div>
         </div>
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-3 text-sm text-slate-400">
+        {summary.fileName ? (
+          <span className="rounded-full border border-[#1f2c4d] bg-[#0a1428] px-3 py-1">
+            File: {summary.fileName}
+          </span>
+        ) : null}
+        {summary.rowsReceived != null ? (
+          <span className="rounded-full border border-[#1f2c4d] bg-[#0a1428] px-3 py-1">
+            {summary.rowsReceived} rows received
+          </span>
+        ) : null}
+        {summary.duplicatesSkipped ? (
+          <span className="rounded-full border border-[#1f2c4d] bg-[#0a1428] px-3 py-1">
+            {summary.duplicatesSkipped} duplicates skipped
+          </span>
+        ) : null}
+        {summary.importStatus ? (
+          <span className="rounded-full border border-[#1f2c4d] bg-[#0a1428] px-3 py-1">
+            Import status: {summary.importStatus}
+          </span>
+        ) : null}
+        {summary.openingBalanceUsed != null ? (
+          <span className="rounded-full border border-[#1f2c4d] bg-[#0a1428] px-3 py-1">
+            Opening balance: {formatCurrency(summary.openingBalanceUsed)}
+          </span>
+        ) : null}
+        {summary.closingBalance != null ? (
+          <span className="rounded-full border border-[#1f2c4d] bg-[#0a1428] px-3 py-1">
+            Closing balance: {formatCurrency(summary.closingBalance)}
+          </span>
+        ) : null}
       </div>
     </div>
   );

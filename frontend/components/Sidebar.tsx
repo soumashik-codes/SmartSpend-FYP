@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { buildApiUrl, clearStoredAccountId } from "@/lib/api";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -51,7 +52,7 @@ export default function Sidebar() {
 
     async function fetchUser() {
       try {
-        const res = await fetch("http://127.0.0.1:8000/auth/me", {
+        const res = await fetch(buildApiUrl("/auth/me"), {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -59,6 +60,7 @@ export default function Sidebar() {
 
         if (!res.ok) {
           localStorage.removeItem("access_token");
+          clearStoredAccountId();
           router.push("/login");
           return;
         }
@@ -96,7 +98,7 @@ export default function Sidebar() {
   // ===============================
   function handleLogout() {
     localStorage.removeItem("access_token");
-    localStorage.removeItem("account_id");
+    clearStoredAccountId();
     router.push("/login");
   }
 

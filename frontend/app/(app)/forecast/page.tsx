@@ -13,6 +13,12 @@ import {
   Legend,
 } from "recharts";
 import { CalendarDays, TrendingUp } from "lucide-react";
+import {
+  buildApiUrl,
+  getAccessToken,
+  getDefaultAccountId,
+  setStoredAccountId,
+} from "@/lib/api";
 
 type ForecastPoint = {
   date: string;      // e.g. "2026-02" or "2026-02-01"
@@ -26,6 +32,8 @@ type ForecastResponse = {
   horizon_months: number;
   predicted_balance: number;  // forecasted end balance
   expected_growth: number;    // predicted_balance - last_actual_balance
+  history_months?: number;
+  forecast_method?: "sarimax" | "fallback";
   points: ForecastPoint[];
 };
 
@@ -47,33 +55,24 @@ export default function ForecastPage() {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("access_token");
+      const token = getAccessToken();
       if (!token) {
         window.location.href = "/login";
         return;
       }
 
       try {
-        // 1) get accounts -> pick first one (your "Main Account")
-        const accountsRes = await fetch("http://127.0.0.1:8000/accounts/", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!accountsRes.ok) throw new Error("Failed to load accounts");
-        const accounts = await accountsRes.json();
-
-        if (!accounts?.length) {
+        const accountId = await getDefaultAccountId();
+        if (!accountId) {
           setData(null);
           setLoading(false);
           return;
         }
 
-        const accountId = accounts[0].id;
+        setStoredAccountId(accountId);
 
-        // 2) get forecast
-        // IMPORTANT: this expects a backend endpoint:
-        // GET /forecast/balance?account_id=1&horizon_months=6
         const forecastRes = await fetch(
-          `http://127.0.0.1:8000/forecast/balance?account_id=${accountId}&horizon_months=${months}`,
+          buildApiUrl(`/forecast/balance?account_id=${accountId}&horizon_months=${months}`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -146,6 +145,8 @@ export default function ForecastPage() {
 
   const predictedBalance = data.predicted_balance ?? 0;
   const expectedGrowth = data.expected_growth ?? 0;
+  const hasLimitedHistory = (data.history_months ?? 0) > 0 && (data.history_months ?? 0) < 6;
+  const isFallbackForecast = data.forecast_method === "fallback";
 
   return (
     <div className="text-white space-y-8">
@@ -158,20 +159,22 @@ export default function ForecastPage() {
           </p>
         </div>
 
-        <div className="bg-[#0f1b33] border border-[#1f2c4d] rounded-xl p-1 flex gap-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p.months}
-              onClick={() => setMonths(p.months)}
-              className={`px-4 py-2 rounded-lg text-sm transition ${
-                months === p.months
-                  ? "bg-green-500 text-black font-semibold"
-                  : "text-gray-300 hover:bg-white/5"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="bg-[#0f1b33] border border-[#1f2c4d] rounded-xl p-1 flex gap-1">
+            {PERIODS.map((p) => (
+              <button
+                key={p.months}
+                onClick={() => setMonths(p.months)}
+                className={`px-4 py-2 rounded-lg text-sm transition ${
+                  months === p.months
+                    ? "bg-green-500 text-black font-semibold"
+                    : "text-gray-300 hover:bg-white/5"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -205,7 +208,15 @@ export default function ForecastPage() {
 
       {/* Chart card */}
       <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">
-        <h2 className="mb-4 font-semibold">Predicted Balance Over Time</h2>
+        <h2 className="mb-4 font-semibold">Projected Balance Over Time</h2>
+        <p className="mb-4 text-sm text-slate-400">
+          Forecasts are estimated from monthly closing balances for your account.
+        </p>
+        {hasLimitedHistory || isFallbackForecast ? (
+          <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            This forecast is using a simplified fallback model because the account history is limited or unstable.
+          </div>
+        ) : null}
 
         <div className="h-[420px]">
           <ResponsiveContainer width="100%" height="100%">

@@ -15,7 +15,12 @@ import {
   Scatter,
 } from "recharts";
 import { AlertTriangle, TrendingUp, TrendingDown, Wallet } from "lucide-react";
-import { getDefaultAccountId } from "@/lib/api";
+import {
+  buildApiUrl,
+  getAccessToken,
+  getDefaultAccountId,
+  setStoredAccountId,
+} from "@/lib/api";
 
 const COLORS = ["#f59e0b", "#8b5cf6", "#3b82f6", "#ef4444", "#22c55e"];
 
@@ -218,7 +223,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadDashboard() {
       setLoading(true);
-      const token = localStorage.getItem("access_token");
+      const token = getAccessToken();
       if (!token) {
         window.location.href = "/login";
         return;
@@ -227,7 +232,7 @@ export default function DashboardPage() {
       try {
         // Get current user
         const meRes = await fetch(
-          "http://127.0.0.1:8000/auth/me",
+          buildApiUrl("/auth/me"),
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const me = await meRes.json();
@@ -242,8 +247,10 @@ export default function DashboardPage() {
           return;
         }
 
+        setStoredAccountId(accountId);
+
         const monthlyRes = await fetch(
-          `http://127.0.0.1:8000/transactions/monthly-summary?account_id=${accountId}`,
+          buildApiUrl(`/transactions/monthly-summary?account_id=${accountId}`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -258,22 +265,22 @@ export default function DashboardPage() {
 
         // Fetch dashboard data
         const summaryRes = await fetch(
-          `http://127.0.0.1:8000/transactions/summary?${querySuffix}`,
+          buildApiUrl(`/transactions/summary?${querySuffix}`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
         const balanceRes = await fetch(
-          `http://127.0.0.1:8000/transactions/balance-history?${querySuffix}`,
+          buildApiUrl(`/transactions/balance-history?${querySuffix}`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
         const categoryRes = await fetch(
-          `http://127.0.0.1:8000/transactions/by-category?${querySuffix}`,
+          buildApiUrl(`/transactions/by-category?${querySuffix}`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
         const transactionsRes = await fetch(
-          `http://127.0.0.1:8000/transactions/?account_id=${accountId}`,
+          buildApiUrl(`/transactions/?account_id=${accountId}`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -469,59 +476,6 @@ export default function DashboardPage() {
           <p className="text-2xl mt-4 text-amber-300">
             {summary.unusual_transaction_count}
           </p>
-        </div>
-      </div>
-
-      <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="font-semibold">Unusual Spending</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Flagged expense transactions with anomaly explanations.
-            </p>
-          </div>
-          <div className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs text-amber-300">
-            {summary.unusual_transaction_count} flagged
-          </div>
-        </div>
-
-        <div className="mt-5 space-y-3">
-          {unusualTransactions.length > 0 ? (
-            unusualTransactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className="rounded-xl border border-[#1f2c4d] bg-[#081427] p-4"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-medium text-white">{transaction.description}</p>
-                    <p className="mt-1 text-sm text-slate-400">
-                      {formatShortDate(transaction.date)}
-                      {" · "}
-                      {transaction.category || "Other"}
-                    </p>
-                  </div>
-                  <p className="text-sm font-medium text-red-400">
-                    £{Math.abs(Number(transaction.amount)).toLocaleString()}
-                  </p>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(transaction.anomaly_reasons || []).map((reason) => (
-                    <span
-                      key={reason}
-                      className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs text-amber-200"
-                    >
-                      {reason}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-slate-400">
-              No unusual expense transactions were flagged in this time range.
-            </p>
-          )}
         </div>
       </div>
 
@@ -735,6 +689,59 @@ export default function DashboardPage() {
           </div>
         </div>
 
+      </div>
+
+      <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="font-semibold">Unusual Spending</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              Flagged expense transactions with anomaly explanations.
+            </p>
+          </div>
+          <div className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs text-amber-300">
+            {summary.unusual_transaction_count} flagged
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {unusualTransactions.length > 0 ? (
+            unusualTransactions.map((transaction) => (
+              <div
+                key={transaction.id}
+                className="rounded-xl border border-[#1f2c4d] bg-[#081427] p-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-white">{transaction.description}</p>
+                    <p className="mt-1 text-sm text-slate-400">
+                      {formatShortDate(transaction.date)}
+                      {" · "}
+                      {transaction.category || "Other"}
+                    </p>
+                  </div>
+                  <p className="text-sm font-medium text-red-400">
+                    £{Math.abs(Number(transaction.amount)).toLocaleString()}
+                  </p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(transaction.anomaly_reasons || []).map((reason) => (
+                    <span
+                      key={reason}
+                      className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs text-amber-200"
+                    >
+                      {reason}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-slate-400">
+              No unusual expense transactions were flagged in this time range.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="bg-[#0f1b33] p-6 rounded-2xl border border-[#1f2c4d]">

@@ -16,6 +16,13 @@ export type ImportSummary = {
   imported: number;
   categorized: number;
   needsReview: number;
+  rowsReceived?: number;
+  duplicatesSkipped?: number;
+  openingBalanceUsed?: number;
+  closingBalance?: number;
+  fileName?: string;
+  importId?: number;
+  importStatus?: string;
 };
 
 export type ConfidenceTone = "high" | "medium" | "low";
@@ -52,22 +59,237 @@ export const CATEGORY_OPTIONS = [
 ];
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  Income: ["salary", "payroll", "interest", "refund", "bonus", "payment from"],
-  Housing: ["rent", "mortgage", "landlord", "lettings", "homes"],
-  Utilities: ["octopus", "energy", "water", "gas", "electric", "vodafone", "ee", "o2"],
-  Groceries: ["tesco", "aldi", "asda", "sainsbury", "lidl", "waitrose", "ocado"],
-  Shopping: ["amazon", "ebay", "zara", "asos", "primark", "argos", "currys"],
-  Dining: ["nandos", "uber eats", "deliveroo", "just eat", "mcdonald", "starbucks", "costa", "restaurant"],
-  Transport: ["uber", "bolt", "train", "rail", "tfl", "shell", "petrol", "esso"],
-  Entertainment: ["spotify", "netflix", "disney", "youtube", "prime", "steam"],
-  Travel: ["holiday", "booking", "airbnb", "expedia", "easyjet", "ryanair", "hotel"],
-  Healthcare: ["nhs", "pharmacy", "boots", "superdrug", "dental", "clinic"],
-  "Personal Care": ["barber", "hair salon", "beauty", "nail", "spa", "sephora", "skincare", "makeup"],
-  Fitness: ["gym", "puregym", "jd gym", "fitness", "yoga"],
-  Transfer: ["transfer", "faster payment", "standing order", "bank transfer"],
-  "Bank Fees": ["fee", "charge", "overdraft", "interest charged"],
-  "Cash Withdrawal": ["atm", "cash withdrawal", "cash machine"],
+  Income: [
+    "salary",
+    "payroll",
+    "interest",
+    "refund",
+    "bonus",
+    "payment from",
+    "hmrc",
+    "pension",
+    "dividend",
+    "benefit",
+    "universal credit",
+    "child benefit",
+  ],
+  Housing: [
+    "rent",
+    "mortgage",
+    "landlord",
+    "lettings",
+    "homes",
+    "foxtons",
+    "rightmove",
+    "zoopla",
+    "service charge",
+    "ground rent",
+  ],
+  Utilities: [
+    "octopus",
+    "british gas",
+    "eon",
+    "edf",
+    "scottish power",
+    "ovo",
+    "thames water",
+    "severn trent",
+    "yorkshire water",
+    "anglian water",
+    "energy",
+    "water",
+    "gas",
+    "electric",
+    "vodafone",
+    "three",
+    "giffgaff",
+    "lebara",
+    "ee",
+    "o2",
+    "virgin media",
+    "bt",
+    "sky",
+    "talktalk",
+    "council tax",
+    "broadband",
+  ],
+  Groceries: [
+    "tesco",
+    "tesco extra",
+    "tesco express",
+    "aldi",
+    "asda",
+    "sainsbury",
+    "sainsburys",
+    "sainsbury's",
+    "lidl",
+    "waitrose",
+    "ocado",
+    "morrisons",
+    "co op",
+    "coop",
+    "iceland",
+    "farmfoods",
+    "marks and spencer food",
+    "m&s food",
+  ],
+  Shopping: [
+    "amazon",
+    "amazon marketplace",
+    "ebay",
+    "etsy",
+    "vinted",
+    "zara",
+    "asos",
+    "shein",
+    "primark",
+    "h&m",
+    "hm",
+    "new look",
+    "uniqlo",
+    "argos",
+    "currys",
+    "john lewis",
+    "next",
+    "ikea",
+    "b&q",
+    "wilko",
+    "tk maxx",
+  ],
+  Dining: [
+    "nandos",
+    "uber eats",
+    "deliveroo",
+    "just eat",
+    "mcdonald",
+    "kfc",
+    "burger king",
+    "subway",
+    "dominos",
+    "pizza hut",
+    "greggs",
+    "pret",
+    "pret a manger",
+    "caffe nero",
+    "cafe nero",
+    "starbucks",
+    "costa",
+    "restaurant",
+    "takeaway",
+    "dining out",
+    "pub",
+    "wetherspoon",
+    "five guys",
+    "itsu",
+    "wagamama",
+  ],
+  Transport: [
+    "uber",
+    "bolt",
+    "trainline",
+    "national rail",
+    "rail",
+    "railway",
+    "tfl",
+    "bus",
+    "underground",
+    "thameslink",
+    "northern rail",
+    "avanti",
+    "southern",
+    "parking",
+    "ringgo",
+    "justpark",
+    "shell",
+    "bp",
+    "esso",
+    "texaco",
+    "petrol",
+    "fuel",
+  ],
+  Entertainment: [
+    "spotify",
+    "netflix",
+    "disney",
+    "youtube",
+    "prime video",
+    "amazon prime",
+    "apple tv",
+    "sky cinema",
+    "now tv",
+    "cineworld",
+    "odeon",
+    "steam",
+    "playstation",
+    "xbox",
+  ],
+  Travel: [
+    "holiday",
+    "booking",
+    "booking.com",
+    "airbnb",
+    "expedia",
+    "easyjet",
+    "ryanair",
+    "jet2",
+    "ba",
+    "british airways",
+    "hotel",
+    "travelodge",
+    "premier inn",
+    "hostelworld",
+  ],
+  Healthcare: [
+    "nhs",
+    "pharmacy",
+    "boots",
+    "superdrug",
+    "lloyds pharmacy",
+    "specsavers",
+    "dental",
+    "dentist",
+    "clinic",
+    "hospital",
+    "optician",
+  ],
+  "Personal Care": [
+    "barber",
+    "hair salon",
+    "beauty",
+    "nail",
+    "spa",
+    "sephora",
+    "skincare",
+    "makeup",
+    "supercuts",
+    "toni and guy",
+  ],
+  Fitness: ["gym", "puregym", "jd gym", "the gym group", "fitness", "yoga", "pilates", "david lloyd"],
+  Transfer: ["transfer", "faster payment", "standing order", "bank transfer", "to savings", "from savings"],
+  "Bank Fees": ["fee", "charge", "overdraft", "interest charged", "late payment fee", "monthly fee"],
+  "Cash Withdrawal": ["atm", "cash withdrawal", "cash machine", "cash wd", "withdrawal"],
 };
+
+const CATEGORY_CONTEXT_PATTERNS: Record<string, string[]> = {
+  Groceries: ["supermarket", "food hall", "grocery"],
+  Dining: ["dining out", "eat out", "food order", "coffee shop", "restaurant bill", "meal"],
+  Transport: ["train ticket", "bus ticket", "travel charge", "fuel station", "tube fare"],
+  Utilities: ["utility bill", "energy bill", "electric bill", "gas bill", "water bill", "phone bill"],
+  Shopping: ["online order", "retail purchase", "clothing store", "homeware"],
+  Healthcare: ["medical", "prescription", "dental care"],
+  Housing: ["rent payment", "mortgage payment", "housing payment"],
+};
+
+const GENERIC_REVIEW_PATTERNS = [
+  "card payment",
+  "contactless",
+  "debit card",
+  "visa purchase",
+  "purchase",
+  "payment",
+  "pos",
+  "transaction",
+];
 
 function normalize(header: string) {
   return header.toLowerCase().replace(/\s+/g, "").replace(/[^a-z]/g, "");
@@ -78,7 +300,14 @@ function detectSchema(headers: string[]) {
     headers.find((header) => possibilities.includes(normalize(header))) || null;
 
   return {
-    dateKey: find(["date", "transactiondate", "bookingdate", "posteddate", "valuedate"]),
+    dateKey: find([
+      "date",
+      "transactiondate",
+      "bookingdate",
+      "posteddate",
+      "valuedate",
+      "transactiondateandtime",
+    ]),
     descriptionKey: find([
       "description",
       "details",
@@ -86,11 +315,15 @@ function detectSchema(headers: string[]) {
       "merchant",
       "reference",
       "payee",
+      "transactiondescription",
+      "transactiondetails",
+      "memo",
+      "particulars",
     ]),
-    amountKey: find(["amount", "value", "transactionamount"]),
+    amountKey: find(["amount", "value", "transactionamount", "debitamount", "creditamount"]),
     balanceKey: find(["balance", "runningbalance", "closingbalance", "accountbalance"]),
-    debitKey: find(["debit"]),
-    creditKey: find(["credit"]),
+    debitKey: find(["debit", "withdrawal", "debitamount"]),
+    creditKey: find(["credit", "deposit", "creditamount"]),
     moneyInKey: find(["moneyin", "paidin"]),
     moneyOutKey: find(["moneyout", "paidout"]),
   };
@@ -98,6 +331,86 @@ function detectSchema(headers: string[]) {
 
 function cleanNumber(value: unknown) {
   return Number(String(value ?? "").replace(/[^\d.-]/g, "").replace(/\s+/g, ""));
+}
+
+function padDatePart(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function toIsoDate(year: number, month: number, day: number) {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  return `${year}-${padDatePart(month)}-${padDatePart(day)}`;
+}
+
+export function parseCsvDateValue(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return null;
+  }
+
+  const isoMatch = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (isoMatch) {
+    return toIsoDate(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3]));
+  }
+
+  const dayFirstMatch = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
+  if (dayFirstMatch) {
+    const yearPart = Number(dayFirstMatch[3]);
+    const year = yearPart < 100 ? 2000 + yearPart : yearPart;
+    return toIsoDate(year, Number(dayFirstMatch[2]), Number(dayFirstMatch[1]));
+  }
+
+  const monthLookup: Record<string, number> = {
+    jan: 1,
+    january: 1,
+    feb: 2,
+    february: 2,
+    mar: 3,
+    march: 3,
+    apr: 4,
+    april: 4,
+    may: 5,
+    jun: 6,
+    june: 6,
+    jul: 7,
+    july: 7,
+    aug: 8,
+    august: 8,
+    sep: 9,
+    sept: 9,
+    september: 9,
+    oct: 10,
+    october: 10,
+    nov: 11,
+    november: 11,
+    dec: 12,
+    december: 12,
+  };
+
+  const namedMonthMatch = raw.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{2,4})$/);
+  if (namedMonthMatch) {
+    const day = Number(namedMonthMatch[1]);
+    const month = monthLookup[namedMonthMatch[2].toLowerCase()];
+    const yearPart = Number(namedMonthMatch[3]);
+    const year = yearPart < 100 ? 2000 + yearPart : yearPart;
+
+    if (month) {
+      return toIsoDate(year, month, day);
+    }
+  }
+
+  return null;
 }
 
 function resolveAmount(row: Record<string, unknown>, schema: ReturnType<typeof detectSchema>) {
@@ -152,9 +465,10 @@ export function parseTransactionsCsv(data: Record<string, unknown>[]) {
   data.forEach((row) => {
     const amount = resolveAmount(row, schema);
     const balance = schema.balanceKey ? cleanNumber(row[schema.balanceKey]) : Number.NaN;
+    const parsedDate = parseCsvDateValue(row[schema.dateKey]);
 
     if (
-      !row[schema.dateKey] ||
+      !parsedDate ||
       !row[schema.descriptionKey] ||
       amount === null ||
       Number.isNaN(amount)
@@ -163,7 +477,7 @@ export function parseTransactionsCsv(data: Record<string, unknown>[]) {
     }
 
     parsed.push({
-      date: String(row[schema.dateKey]).trim(),
+      date: parsedDate,
       description: String(row[schema.descriptionKey]).trim(),
       amount,
       balance: !Number.isNaN(balance) ? balance : undefined,
@@ -181,10 +495,13 @@ export function formatCurrency(value: number) {
 }
 
 export function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  const isoValue = parseCsvDateValue(value);
+  if (!isoValue) {
     return value;
   }
+
+  const [year, month, day] = isoValue.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
 
   return date.toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -208,11 +525,35 @@ function findMatchedKeyword(description: string, category: string) {
   return keyword || null;
 }
 
+function findMatchedContextPattern(description: string, category: string) {
+  const normalized = description.toLowerCase();
+  const pattern = (CATEGORY_CONTEXT_PATTERNS[category] || []).find((item) =>
+    normalized.includes(item),
+  );
+  return pattern || null;
+}
+
+function isGenericDescription(description: string) {
+  const normalized = description.toLowerCase().trim();
+  if (!normalized) {
+    return true;
+  }
+
+  if (GENERIC_REVIEW_PATTERNS.some((pattern) => normalized === pattern)) {
+    return true;
+  }
+
+  return normalized.split(/\s+/).length <= 2 && GENERIC_REVIEW_PATTERNS.some((pattern) =>
+    normalized.includes(pattern),
+  );
+}
+
 export function getAiInsight(transaction: Transaction): AiInsight {
   const category = displayCategory(transaction.category);
   const description = String(transaction.description || "");
   const normalized = description.toLowerCase();
   const matchedKeyword = findMatchedKeyword(description, category);
+  const matchedContextPattern = findMatchedContextPattern(description, category);
 
   if (category === "Other") {
     return {
@@ -243,12 +584,25 @@ export function getAiInsight(transaction: Transaction): AiInsight {
   if (matchedKeyword) {
     return {
       category,
-      confidence: 94,
+      confidence: 95,
       tone: "high",
       needsReview: false,
       reasons: [
         `Merchant pattern matched "${matchedKeyword}".`,
         `Description is highly consistent with the ${category} category.`,
+      ],
+    };
+  }
+
+  if (matchedContextPattern) {
+    return {
+      category,
+      confidence: 86,
+      tone: "high",
+      needsReview: false,
+      reasons: [
+        `Description matched the ${category} pattern "${matchedContextPattern}".`,
+        "The transaction wording is clear enough to classify confidently without a specific merchant hit.",
       ],
     };
   }
@@ -268,12 +622,14 @@ export function getAiInsight(transaction: Transaction): AiInsight {
 
   return {
     category,
-    confidence: 76,
+    confidence: isGenericDescription(normalized) ? 62 : 76,
     tone: "medium",
-    needsReview: false,
+    needsReview: isGenericDescription(normalized),
     reasons: [
       `AI matched the description to the ${category} category.`,
-      "Confidence is moderate because the merchant pattern is less explicit.",
+      isGenericDescription(normalized)
+        ? "The category is plausible, but the transaction text is generic and may need manual review."
+        : "Confidence is moderate because the merchant pattern is less explicit.",
     ],
   };
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { UploadCloud, FileText, ShoppingCart } from "lucide-react";
+import { buildApiUrl, getAccessToken } from "@/lib/api";
 
 type Item = {
   name: string;
@@ -18,7 +19,7 @@ export default function ReceiptsPage() {
   async function handleUpload(file: File) {
     if (!file) return;
 
-    const token = localStorage.getItem("access_token");
+    const token = getAccessToken();
     if (!token) {
       window.location.href = "/login";
       return;
@@ -31,7 +32,7 @@ export default function ReceiptsPage() {
     setError("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/receipts/upload", {
+      const res = await fetch(buildApiUrl("/receipts/upload"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
