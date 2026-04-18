@@ -23,12 +23,15 @@ import { UploadCard } from "./components/UploadCard";
 import {
   displayCategory,
   getAiInsight,
+  type CsvParseResult,
   type DecoratedTransaction,
   type ImportSummary as ImportSummaryData,
   type Transaction,
 } from "./components/shared";
 
 export default function TransactionsPage() {
+  const uploadSectionRef = useRef<HTMLDivElement | null>(null);
+  const browseFileRef = useRef<(() => void) | null>(null);
   const [previewRows, setPreviewRows] = useState<Transaction[]>([]);
   const [savedRows, setSavedRows] = useState<Transaction[]>([]);
   const [search, setSearch] = useState("");
@@ -436,32 +439,70 @@ export default function TransactionsPage() {
         </button>
       </div>
 
-      <UploadCard
-        previewRows={previewRows}
-        onPreviewReady={(rows) => {
-          setPreviewRows(rows);
-          setImportSummary(null);
-          setPageError("");
-          setUploadInfo(
-            rows.length
-              ? `${rows.length} valid transactions are ready to import for the current account.`
-              : "",
-          );
-        }}
-        onFileMetaReady={({ fileName, rawCsv }) => {
-          setUploadFileName(fileName);
-          setUploadRawCsv(rawCsv);
-        }}
-        onSave={saveAndAnalyse}
-        isSaving={isSaving}
-        errorMessage={pageError}
-        infoMessage={uploadInfo}
-        onError={(message) => {
-          setPageError(message);
-          setUploadInfo("");
-          setImportSummary(null);
-        }}
-      />
+      {savedRows.length === 0 && previewRows.length === 0 ? (
+        <div className="mt-8 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/70">
+            Welcome to SmartSpend
+          </p>
+          <h2 className="mt-3 text-2xl font-semibold text-white">
+            Upload your first bank statement to get started
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+            To unlock forecasts, AI insights, spending analysis, and advisor recommendations,
+            upload your first bank statement CSV for this account.
+          </p>
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() => {
+                uploadSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                browseFileRef.current?.();
+              }}
+              className="rounded-lg bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+            >
+              Upload Transactions
+            </button>
+            <p className="text-sm text-slate-400">Supported: CSV bank exports</p>
+          </div>
+        </div>
+      ) : null}
+
+      <div ref={uploadSectionRef}>
+        <UploadCard
+          previewRows={previewRows}
+          onRegisterBrowseAction={(openFilePicker) => {
+            browseFileRef.current = openFilePicker;
+          }}
+          onPreviewReady={(result: CsvParseResult) => {
+            setPreviewRows(result.rows);
+            setImportSummary(null);
+            if (!result.rows.length) {
+              setUploadInfo("");
+              return;
+            }
+
+            setPageError("");
+            setUploadInfo(
+              result.skippedRows > 0
+                ? `${result.rows.length} valid transactions are ready to import. ${result.skippedRows} row${result.skippedRows === 1 ? "" : "s"} were skipped because they were missing a valid date, description, or amount.`
+                : `${result.rows.length} valid transactions are ready to import for the current account.`,
+            );
+          }}
+          onFileMetaReady={({ fileName, rawCsv }) => {
+            setUploadFileName(fileName);
+            setUploadRawCsv(rawCsv);
+          }}
+          onSave={saveAndAnalyse}
+          isSaving={isSaving}
+          errorMessage={pageError}
+          infoMessage={uploadInfo}
+          onError={(message) => {
+            setPageError(message);
+            setUploadInfo("");
+            setImportSummary(null);
+          }}
+        />
+      </div>
 
       {importSummary ? (
         <ImportSummary

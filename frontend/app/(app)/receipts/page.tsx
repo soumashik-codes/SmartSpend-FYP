@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { UploadCloud, FileText, ShoppingCart } from "lucide-react";
-import { buildApiUrl, getAccessToken } from "@/lib/api";
+import { buildApiUrl, getAccessToken, getErrorMessageFromResponse } from "@/lib/api";
 
 type Item = {
   name: string;
@@ -11,10 +11,18 @@ type Item = {
   line_total?: number;
 };
 
+type ReceiptData = {
+  merchant?: string | null;
+  receipt_date?: string | null;
+  total?: number | null;
+  items?: Item[];
+};
+
 export default function ReceiptsPage() {
   const [loading, setLoading] = useState(false);
-  const [receipt, setReceipt] = useState<any>(null);
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [error, setError] = useState("");
+  const receiptItems = receipt?.items ?? [];
 
   async function handleUpload(file: File) {
     if (!file) return;
@@ -41,13 +49,15 @@ export default function ReceiptsPage() {
       });
 
       if (!res.ok) {
-        throw new Error("Upload failed");
+        throw new Error(
+          await getErrorMessageFromResponse(res, "Failed to process receipt."),
+        );
       }
 
       const data = await res.json();
       setReceipt(data);
-    } catch (err: any) {
-      setError("Failed to process receipt");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to process receipt.");
     } finally {
       setLoading(false);
     }
@@ -146,7 +156,7 @@ export default function ReceiptsPage() {
                 </tr>
               </thead>
               <tbody>
-                {receipt.items?.map((item: Item, index: number) => (
+                  {receipt.items?.map((item, index: number) => (
                   <tr
                     key={index}
                     className="border-b border-[#1f2c4d] hover:bg-[#111c36]"
@@ -172,7 +182,7 @@ export default function ReceiptsPage() {
       )}
 
       {/* Item Insights */}
-      {receipt && receipt.items?.length > 0 && (
+      {receipt && receiptItems.length > 0 && (
         <div className="bg-[#0f1b33] border border-[#1f2c4d] rounded-2xl p-6">
 
           <div className="flex items-center gap-2 mb-6">
@@ -185,7 +195,7 @@ export default function ReceiptsPage() {
             <div className="bg-[#111c36] p-4 rounded-xl">
               <p className="text-gray-400 text-sm">Total Items</p>
               <p className="text-2xl font-semibold">
-                {receipt.items.length}
+                {receiptItems.length}
               </p>
             </div>
 
@@ -193,7 +203,7 @@ export default function ReceiptsPage() {
               <p className="text-gray-400 text-sm">Most Expensive Item</p>
               <p className="text-lg font-semibold">
                 {
-                  receipt.items.reduce((a: any, b: any) =>
+                  receiptItems.reduce((a, b) =>
                     (a.line_total || 0) > (b.line_total || 0) ? a : b
                   ).name
                 }
@@ -205,10 +215,10 @@ export default function ReceiptsPage() {
               <p className="text-lg font-semibold">
                 £
                 {(
-                  receipt.items.reduce(
-                    (sum: number, i: any) => sum + (i.line_total || 0),
-                    0
-                  ) / receipt.items.length
+                  receiptItems.reduce(
+                    (sum: number, i: Item) => sum + (i.line_total || 0),
+                    0,
+                  ) / receiptItems.length
                 ).toFixed(2)}
               </p>
             </div>

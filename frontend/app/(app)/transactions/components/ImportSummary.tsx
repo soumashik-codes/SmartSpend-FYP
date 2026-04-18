@@ -69,11 +69,6 @@ export function ImportSummary({ summary, onReviewTransactions }: ImportSummaryPr
             Import status: {summary.importStatus}
           </span>
         ) : null}
-        {summary.openingBalanceUsed != null ? (
-          <span className="rounded-full border border-[#1f2c4d] bg-[#0a1428] px-3 py-1">
-            Opening balance: {formatCurrency(summary.openingBalanceUsed)}
-          </span>
-        ) : null}
         {summary.closingBalance != null ? (
           <span className="rounded-full border border-[#1f2c4d] bg-[#0a1428] px-3 py-1">
             Closing balance: {formatCurrency(summary.closingBalance)}

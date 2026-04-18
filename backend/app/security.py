@@ -1,29 +1,28 @@
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 
-from jose import jwt, JWTError
-from passlib.context import CryptContext
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from .database import get_db
 from . import models
+from .database import get_db
 
-# 🔐 CONFIG
-SECRET_KEY = "CHANGE_THIS_IN_FINAL"  # later move to .env
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY", "CHANGE_THIS_IN_FINAL").strip() or "CHANGE_THIS_IN_FINAL"
+ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256").strip() or "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24)).strip() or str(60 * 24)
+)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# 👇 This must match your login route
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
-
-# =========================
-# PASSWORD FUNCTIONS
-# =========================
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -32,10 +31,6 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return pwd_context.verify(password, hashed)
 
-
-# =========================
-# JWT FUNCTIONS
-# =========================
 
 def create_access_token(subject: str, expires_minutes: Optional[int] = None) -> str:
     expire = datetime.utcnow() + timedelta(
@@ -52,10 +47,6 @@ def decode_token(token: str) -> Optional[str]:
     except JWTError:
         return None
 
-
-# =========================
-# CURRENT USER DEPENDENCY
-# =========================
 
 def get_current_user(
     token: str = Depends(oauth2_scheme),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   ResponsiveContainer,
   XAxis,
@@ -16,6 +17,7 @@ import {
 import { RotateCcw, SlidersHorizontal } from "lucide-react";
 import {
   buildApiUrl,
+  getErrorMessageFromResponse,
   getAccessToken,
   getDefaultAccountId,
   setStoredAccountId,
@@ -161,8 +163,9 @@ export default function WhatIfPage() {
       });
 
       if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "Unable to run simulation.");
+        throw new Error(
+          await getErrorMessageFromResponse(response, "Unable to run simulation."),
+        );
       }
 
       const data = (await response.json()) as WhatIfResponse;
@@ -214,16 +217,48 @@ export default function WhatIfPage() {
   const hasActiveAdjustments = Object.values(adjustments).some((value) => value !== 0);
   const activeComparisonDate = chartData.length > 1 ? chartData[1].date : chartData[0]?.date;
   const hasAdjustableCategories = categories.length > 0;
+  const hasNoTransactionHistory =
+    error.includes("No transactions found for this account") ||
+    error.includes('"detail":"No transactions found for this account"');
 
   if (loading && !simulation) {
     return <div className="p-8 text-white">Loading What-If simulator...</div>;
   }
 
-  if (error && !simulation) {
+  if ((error && !simulation) || hasNoTransactionHistory) {
     return (
-      <div className="p-8 text-white">
-        <h1 className="text-3xl font-semibold">What-If Simulator</h1>
-        <p className="mt-3 max-w-2xl text-red-400">{error}</p>
+      <div className="space-y-6 text-white">
+        <div>
+          <h1 className="text-4xl font-bold">What-If Simulator</h1>
+          <p className="mt-2 text-gray-400">
+            Estimate how changing recent spending patterns could affect your forecasted balance.
+          </p>
+        </div>
+
+        <div className="rounded-3xl border border-cyan-500/20 bg-cyan-500/10 p-8">
+          <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/70">
+            What-If analysis needs transaction history
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold text-white">
+            Upload transactions before running scenarios
+          </h2>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
+            Upload transactions first, then simulate category changes and future balance
+            outcomes for this account.
+          </p>
+          <div className="mt-6">
+            <Link
+              href="/transactions"
+              className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+            >
+              Upload Transactions
+            </Link>
+          </div>
+        </div>
+
+        {error && !hasNoTransactionHistory ? (
+          <p className="text-sm text-rose-300">{error}</p>
+        ) : null}
       </div>
     );
   }

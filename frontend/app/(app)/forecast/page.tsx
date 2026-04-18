@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   ResponsiveContainer,
   XAxis,
@@ -15,6 +16,7 @@ import {
 import { CalendarDays, TrendingUp } from "lucide-react";
 import {
   buildApiUrl,
+  getErrorMessageFromResponse,
   getAccessToken,
   getDefaultAccountId,
   setStoredAccountId,
@@ -33,7 +35,10 @@ type ForecastResponse = {
   predicted_balance: number;  // forecasted end balance
   expected_growth: number;    // predicted_balance - last_actual_balance
   history_months?: number;
-  forecast_method?: "sarimax" | "fallback";
+  forecast_method?: string;
+  forecast_method_label?: string;
+  forecast_confidence?: "Low" | "Medium" | "High" | string;
+  forecast_reliability_note?: string;
   points: ForecastPoint[];
 };
 
@@ -77,14 +82,18 @@ export default function ForecastPage() {
         );
 
         if (!forecastRes.ok) {
-          const msg = await forecastRes.text();
-          throw new Error(msg || "Forecast API failed");
+          throw new Error(
+            await getErrorMessageFromResponse(
+              forecastRes,
+              "Unable to load forecast for this account.",
+            ),
+          );
         }
 
         const json: ForecastResponse = await forecastRes.json();
         setData(json);
-      } catch (e: any) {
-        setError(e?.message || "Failed to load forecast");
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Failed to load forecast");
         setData(null);
       } finally {
         setLoading(false);
@@ -98,6 +107,10 @@ export default function ForecastPage() {
     return data?.points ?? [];
   }, [data]);
 
+  const hasNoTransactionHistory =
+    error.includes("No transactions found for this account") ||
+    error.includes('"detail":"No transactions found for this account"');
+
   const periodTitle = useMemo(() => {
     if (months === 3) return "Next 3 Months";
     if (months === 6) return "Next 6 Months";
@@ -108,7 +121,7 @@ export default function ForecastPage() {
     return <div className="p-8 text-white">Loading forecast...</div>;
   }
 
-  if (error) {
+  if (error && !hasNoTransactionHistory) {
     return (
       <div className="p-8 text-white">
         <h1 className="text-2xl font-semibold">Financial Forecast</h1>
@@ -122,22 +135,37 @@ export default function ForecastPage() {
   }
 
   // no account / no data
-  if (!data || !chartData.length) {
+  if (hasNoTransactionHistory || !data || !chartData.length) {
     return (
       <div className="text-white">
         <div className="flex items-start justify-between gap-6">
-          <div>
-            <h1 className="text-4xl font-bold">Financial Forecast</h1>
-            <p className="text-gray-400 mt-2">
-              Predicted balance using time-series analysis (SARIMAX)
-            </p>
-          </div>
+            <div>
+              <h1 className="text-4xl font-bold">Financial Forecast</h1>
+              <p className="text-gray-400 mt-2">
+                Projected future balance from your uploaded statement history
+              </p>
+            </div>
         </div>
 
-        <div className="mt-10 bg-[#0f1b33] border border-[#1f2c4d] rounded-2xl p-6">
-          <p className="text-gray-300">
-            No transaction history found. Upload a CSV first to generate a forecast.
+        <div className="mt-10 rounded-3xl border border-cyan-500/20 bg-cyan-500/10 p-8">
+          <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/70">
+            Forecast unavailable until transaction history is uploaded
           </p>
+          <h2 className="mt-3 text-3xl font-semibold text-white">
+            Add transactions to generate monthly balance forecasts
+          </h2>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
+            Upload transactions first so SmartSpend can learn your monthly patterns and
+            generate a forecast for this account.
+          </p>
+          <div className="mt-6">
+            <Link
+              href="/transactions"
+              className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+            >
+              Upload Transactions
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -146,7 +174,13 @@ export default function ForecastPage() {
   const predictedBalance = data.predicted_balance ?? 0;
   const expectedGrowth = data.expected_growth ?? 0;
   const hasLimitedHistory = (data.history_months ?? 0) > 0 && (data.history_months ?? 0) < 6;
-  const isFallbackForecast = data.forecast_method === "fallback";
+  const isFallbackForecast = data.forecast_method !== "sarimax";
+  const confidenceTone =
+    data.forecast_confidence === "High"
+      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
+      : data.forecast_confidence === "Medium"
+        ? "border-sky-500/20 bg-sky-500/10 text-sky-200"
+        : "border-amber-500/20 bg-amber-500/10 text-amber-200";
 
   return (
     <div className="text-white space-y-8">
@@ -155,7 +189,7 @@ export default function ForecastPage() {
         <div>
           <h1 className="text-4xl font-bold">Financial Forecast</h1>
           <p className="text-gray-400 mt-2">
-            Predicted balance using time-series analysis (SARIMAX)
+            Projected future balance from your uploaded statement history
           </p>
         </div>
 
@@ -212,9 +246,24 @@ export default function ForecastPage() {
         <p className="mb-4 text-sm text-slate-400">
           Forecasts are estimated from monthly closing balances for your account.
         </p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          <span className="rounded-full border border-[#21304f] bg-[#081427] px-3 py-1 text-xs text-slate-300">
+            Method: {data.forecast_method_label ?? (isFallbackForecast ? "Baseline trend" : "SARIMAX time-series model")}
+          </span>
+          <span className={`rounded-full border px-3 py-1 text-xs ${confidenceTone}`}>
+            Confidence: {data.forecast_confidence ?? "Low"}
+          </span>
+          <span className="rounded-full border border-[#21304f] bg-[#081427] px-3 py-1 text-xs text-slate-300">
+            History used: {data.history_months ?? 0} months
+          </span>
+        </div>
         {hasLimitedHistory || isFallbackForecast ? (
           <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-            This forecast is using a simplified fallback model because the account history is limited or unstable.
+            {data.forecast_reliability_note || "This forecast is using a simplified fallback model because the account history is limited or unstable."}
+          </div>
+        ) : data.forecast_reliability_note ? (
+          <div className="mb-4 rounded-xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
+            {data.forecast_reliability_note}
           </div>
         ) : null}
 
@@ -245,7 +294,7 @@ export default function ForecastPage() {
                   borderRadius: 12,
                   color: "white",
                 }}
-                formatter={(v: any) => [`£${Number(v).toLocaleString()}`, ""]}
+                formatter={(value: number | string | undefined) => [`£${Number(value ?? 0).toLocaleString()}`, ""]}
               />
               <Legend />
 
@@ -291,10 +340,10 @@ export default function ForecastPage() {
         </div>
 
         <p className="text-xs text-gray-400 mt-3">
-          Tip: If the user uploads only 1–2 months of transactions, the backend should still return a forecast,
-          but with wider confidence bounds.
+          SmartSpend chooses between SARIMAX and a simpler cash-flow trend depending on how much stable history is available.
         </p>
       </div>
     </div>
   );
 }
+

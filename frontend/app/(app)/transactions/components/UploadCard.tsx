@@ -1,13 +1,20 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { UploadCloud } from "lucide-react";
 import Papa from "papaparse";
-import { formatCurrency, formatDate, parseTransactionsCsv, type Transaction } from "./shared";
+import {
+  formatCurrency,
+  formatDate,
+  parseTransactionsCsv,
+  type CsvParseResult,
+  type Transaction,
+} from "./shared";
 
 type UploadCardProps = {
   previewRows: Transaction[];
-  onPreviewReady: (rows: Transaction[]) => void;
+  onPreviewReady: (result: CsvParseResult) => void;
+  onRegisterBrowseAction?: (openFilePicker: () => void) => void;
   onFileMetaReady?: (meta: { fileName: string; rawCsv: string }) => void;
   onSave: () => Promise<void>;
   isSaving: boolean;
@@ -19,6 +26,7 @@ type UploadCardProps = {
 export function UploadCard({
   previewRows,
   onPreviewReady,
+  onRegisterBrowseAction,
   onFileMetaReady,
   onSave,
   isSaving,
@@ -27,8 +35,13 @@ export function UploadCard({
   onError,
 }: UploadCardProps) {
   const inputId = useId();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [fileName, setFileName] = useState("");
   const [isParsing, setIsParsing] = useState(false);
+
+  useEffect(() => {
+    onRegisterBrowseAction?.(() => fileInputRef.current?.click());
+  }, [onRegisterBrowseAction]);
 
   async function handleFile(file: File) {
     setFileName(file.name);
@@ -49,7 +62,7 @@ export function UploadCard({
             error instanceof Error ? error.message : "Unable to parse this CSV file.";
           onError?.(message);
           setFileName("");
-          onPreviewReady([]);
+          onPreviewReady({ rows: [], totalRows: 0, skippedRows: 0 });
           onFileMetaReady?.({ fileName: "", rawCsv: "" });
         } finally {
           setIsParsing(false);
@@ -58,7 +71,7 @@ export function UploadCard({
       error: () => {
         onError?.("Unable to parse this CSV file.");
         setFileName("");
-        onPreviewReady([]);
+        onPreviewReady({ rows: [], totalRows: 0, skippedRows: 0 });
         onFileMetaReady?.({ fileName: "", rawCsv: "" });
         setIsParsing(false);
       },
@@ -69,6 +82,7 @@ export function UploadCard({
     <>
       <div className="mt-8 rounded-2xl border-2 border-dashed border-green-500/30 bg-[#0f1b33] p-12 text-center transition-colors hover:border-emerald-500">
         <input
+          ref={fileInputRef}
           type="file"
           accept=".csv"
           id={inputId}

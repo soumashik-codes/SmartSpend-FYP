@@ -25,6 +25,12 @@ export type ImportSummary = {
   importStatus?: string;
 };
 
+export type CsvParseResult = {
+  rows: Transaction[];
+  totalRows: number;
+  skippedRows: number;
+};
+
 export type ConfidenceTone = "high" | "medium" | "low";
 
 export type AiInsight = {
@@ -450,41 +456,65 @@ function resolveAmount(row: Record<string, unknown>, schema: ReturnType<typeof d
 
 export function parseTransactionsCsv(data: Record<string, unknown>[]) {
   if (!data.length) {
-    return [];
+    throw new Error("This CSV appears to be empty or contains no readable transaction rows.");
   }
 
   const headers = Object.keys(data[0]);
   const schema = detectSchema(headers);
 
-  if (!schema.dateKey || !schema.descriptionKey) {
-    throw new Error("Could not detect required columns.");
+  const hasAmountSource = Boolean(
+    schema.amountKey ||
+    schema.creditKey ||
+    schema.debitKey ||
+    schema.moneyInKey ||
+    schema.moneyOutKey,
+  );
+
+  if (!schema.dateKey || !schema.descriptionKey || !hasAmountSource) {
+    throw new Error(
+      "This CSV format is not supported. SmartSpend could not detect the required columns: date, description, and amount.",
+    );
   }
 
   const parsed: Transaction[] = [];
+  let skippedRows = 0;
+  const dateKey = schema.dateKey;
+  const descriptionKey = schema.descriptionKey;
 
   data.forEach((row) => {
     const amount = resolveAmount(row, schema);
     const balance = schema.balanceKey ? cleanNumber(row[schema.balanceKey]) : Number.NaN;
-    const parsedDate = parseCsvDateValue(row[schema.dateKey]);
+    const parsedDate = parseCsvDateValue(row[dateKey]);
 
     if (
       !parsedDate ||
-      !row[schema.descriptionKey] ||
+      !row[descriptionKey] ||
       amount === null ||
       Number.isNaN(amount)
     ) {
+      skippedRows += 1;
       return;
     }
 
     parsed.push({
       date: parsedDate,
-      description: String(row[schema.descriptionKey]).trim(),
+      description: String(row[descriptionKey]).trim(),
       amount,
       balance: !Number.isNaN(balance) ? balance : undefined,
     });
   });
 
-  return parsed;
+  if (!parsed.length) {
+    throw new Error(
+      "This CSV was read, but no valid transaction rows were found. Check that it includes usable date, description, and amount values.",
+    );
+  }
+
+  return {
+    rows: parsed,
+    totalRows: data.length,
+    skippedRows,
+  } satisfies CsvParseResult;
 }
 
 export function formatCurrency(value: number) {

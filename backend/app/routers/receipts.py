@@ -1,13 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
 from PIL import Image
+from sqlalchemy.orm import Session
 
-from ..database import get_db
 from .. import models
+from ..database import get_db
+from ..ml.receipt_engine import extract_receipt
 from ..models import Receipt, ReceiptItem
 from ..security import decode_token
-from ..ml.receipt_engine import extract_receipt
 
 router = APIRouter(prefix="/receipts", tags=["Receipts"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -39,7 +39,10 @@ async def upload_receipt(
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid image")
 
-    extracted = extract_receipt(img)
+    try:
+        extracted = extract_receipt(img)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
     receipt = Receipt(
         user_id=user.id,
@@ -55,19 +58,21 @@ async def upload_receipt(
     db.refresh(receipt)
 
     for item in extracted.get("items", []):
-        db.add(ReceiptItem(
-            receipt_id=receipt.id,
-            name=item["name"],
-            qty=float(item.get("qty", 1.0)),
-            unit_price=item.get("unit_price"),
-            line_total=item.get("line_total"),
-        ))
+        db.add(
+            ReceiptItem(
+                receipt_id=receipt.id,
+                name=item["name"],
+                qty=float(item.get("qty", 1.0)),
+                unit_price=item.get("unit_price"),
+                line_total=item.get("line_total"),
+            )
+        )
 
     db.commit()
 
     return {
         "id": receipt.id,
-        **extracted
+        **extracted,
     }
 
 

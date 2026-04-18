@@ -8,7 +8,7 @@ from statistics import mean
 from .. import models
 from ..ml.anomaly_detector import detect_expense_anomalies
 from ..ml.merchant_normalizer import canonicalize_merchant
-from .advisor_narrative import generate_advisor_narrative
+from .advisor_narrative import generate_advisor_language_pack
 
 
 LABEL_THRESHOLDS = [
@@ -142,6 +142,19 @@ def is_stable_essential_recurring(
     return recurring.transaction_count >= 3 and recurring.cadence_label == "monthly"
 
 
+def should_surface_anomaly(amount: float, reasons: list[str]) -> bool:
+    if amount >= 150:
+        return True
+
+    if len(reasons) >= 2:
+        return True
+
+    return any(
+        reason == "Rare merchant" or reason.startswith("Higher than usual ")
+        for reason in reasons
+    )
+
+
 def build_monthly_series(
     transactions: list[models.Transaction],
 ) -> tuple[list[str], dict[str, float], dict[str, float], dict[str, dict[str, float]]]:
@@ -214,13 +227,13 @@ def build_score_message(label: str, component_scores: dict[str, int]) -> str:
 
     if label in {"Excellent", "Good"}:
         return (
-            f"Your recent spending is being supported by strong {strongest_component.replace('_', ' ')}. "
-            f"The biggest remaining opportunity is {weakest_component.replace('_', ' ')}."
+            f"Your recent transaction history shows strong {strongest_component.replace('_', ' ')}. "
+            f"The main area to keep reviewing is {weakest_component.replace('_', ' ')}."
         )
 
     return (
-        f"The advisor sees pressure in {weakest_component.replace('_', ' ')}. "
-        f"Improving that area should have the fastest impact on your overall financial health."
+        f"Your recent transaction history shows some pressure in {weakest_component.replace('_', ' ')}. "
+        f"Improving that area should have the clearest impact on your overall financial health."
     )
 
 
@@ -327,11 +340,17 @@ def build_score_reasons(
             savings_rate = ((latest_income - latest_expense) / latest_income) * 100
             if savings_rate >= 20:
                 reasons.append(f"Savings rate reached {savings_rate:.0f}% in {latest_month}.")
+            elif savings_rate < 0:
+                reasons.append(
+                    f"Spending exceeded income by about {abs(savings_rate):.0f}% in {latest_month}."
+                )
             elif savings_rate <= 5:
-                reasons.append(f"Savings rate is only {max(0.0, savings_rate):.0f}% in {latest_month}.")
+                reasons.append(f"Savings rate is only {savings_rate:.0f}% in {latest_month}.")
 
     if anomaly_count:
-        reasons.append(f"{anomaly_count} recent transactions were flagged as unusual.")
+        reasons.append(
+            f"{anomaly_count} recent transaction{'s' if anomaly_count != 1 else ''} may be worth reviewing."
+        )
 
     if average_income_recent > 0 and recurring_monthly_total > 0:
         commitments_pct = (recurring_monthly_total / average_income_recent) * 100
@@ -498,6 +517,12 @@ def build_recent_anomalies(
         ):
             continue
 
+        if not should_surface_anomaly(
+            amount=abs(float(transaction.amount)),
+            reasons=result.reasons,
+        ):
+            continue
+
         anomalies.append(
             {
                 "id": int(transaction.id),
@@ -529,7 +554,7 @@ def build_spending_spike_insight(category_drilldowns: list[dict]) -> dict | None
         f"averaging GBP {row['recent_average']:,.2f} a month."
     )
     if merchant_text:
-        detail += f" Main drivers: {merchant_text}."
+        detail += f" Main merchants in that increase: {merchant_text}."
 
     return {
         "kind": "warning",
@@ -558,8 +583,8 @@ def build_food_budget_insight(category_drilldowns: list[dict], recent_months: li
         "kind": "positive",
         "title": "Food Budget On Track",
         "detail": (
-            f"Across your last {len(recent_months)} months, food spending is holding steady at "
-            f"about GBP {recent_average:,.2f} a month, {abs(change_pct):.0f}% "
+            f"Across your last {len(recent_months)} months, food spending has stayed close to "
+            f"GBP {recent_average:,.2f} a month, {abs(change_pct):.0f}% "
             f"{'below' if change_pct < 0 else 'above'} the previous period."
         ),
         "metric_label": "Food monthly average",
@@ -580,7 +605,7 @@ def build_recurring_insight(recurring: list[RecurringCharge], average_income_rec
         "title": "Recurring Payment Review",
         "detail": (
             f"The advisor detected about GBP {recurring_monthly_total:,.2f} a month in recurring payment patterns. "
-            f"Review items such as {top_names} to confirm they still belong in your regular budget."
+            f"Review items such as {top_names} to confirm they still fit your regular budget."
         ),
         "metric_label": "Recurring monthly spend",
         "metric_value": f"GBP {recurring_monthly_total:,.0f}",
@@ -608,7 +633,7 @@ def build_savings_opportunity(category_drilldowns: list[dict]) -> tuple[dict | N
             "title": "Savings Opportunity",
             "detail": (
                 f"{row['category']} is currently averaging GBP {row['recent_average']:,.2f} per month. "
-                f"Bringing it down by about GBP {monthly_savings:,.2f} a month could free up "
+                f"Reducing that by about GBP {monthly_savings:,.2f} a month could free up "
                 f"roughly GBP {six_month_savings:,.2f} over the next 6 months."
             ),
             "metric_label": "Potential 6-month savings",
@@ -625,7 +650,7 @@ def build_anomaly_insight(recent_anomalies: list[dict]) -> dict | None:
     top = recent_anomalies[0]
     reason_text = ", ".join(top["reasons"][:2])
     detail = (
-        f"The largest unusual recent transaction was {top['description']} for GBP {top['amount']:,.2f}."
+        f"The clearest recent transaction to review was {top['description']} for GBP {top['amount']:,.2f}."
     )
     if reason_text:
         detail += f" It was flagged because of {reason_text.lower()}."
@@ -657,20 +682,20 @@ def build_recommendations(
     )
     if spike_row:
         recommendations.append(
-            f"Set a watch target for {spike_row['category'].lower()} at or below GBP {spike_row['previous_average']:,.0f} per month until the recent spike settles."
+            f"Use GBP {spike_row['previous_average']:,.0f} a month as a watch target for {spike_row['category'].lower()} until the recent increase settles."
         )
 
     if recent_anomalies:
         top = recent_anomalies[0]
         reasons = ", ".join(top["reasons"][:2]).lower()
         recommendations.append(
-            f"Review {top['description']} from {top['date']} because it was flagged for {reasons or 'unusual spending behaviour'}."
+            f"Review {top['description']} from {top['date']} because it was flagged for {reasons or 'an unusual spending pattern'}."
         )
 
     if recurring:
         top_recurring = recurring[0]
         recommendations.append(
-            f"Verify the recurring {top_recurring.category.lower()} payment to {top_recurring.merchant} still belongs in your monthly budget."
+            f"Check that the recurring {top_recurring.category.lower()} payment to {top_recurring.merchant} still belongs in your monthly budget."
         )
 
     if savings_category:
@@ -680,7 +705,7 @@ def build_recommendations(
         )
         savings_amount = savings_row["recent_average"] if savings_row else 0.0
         recommendations.append(
-            f"If you reduce {savings_category.lower()} from its recent average of GBP {savings_amount:,.0f} a month, move the difference into savings as income arrives."
+            f"If you reduce {savings_category.lower()} from its recent average of GBP {savings_amount:,.0f} a month, move the difference into savings when income arrives."
         )
 
     if score >= 75 and not spike_row and not recent_anomalies:
@@ -689,7 +714,7 @@ def build_recommendations(
         )
     elif not recent_anomalies and not spike_row:
         recommendations.append(
-            "Focus on one spending category first, then reassess the advisor after another month of uploaded transactions."
+            "Focus on one spending category first, then review the advisor again after another month of uploaded transactions."
         )
 
     deduped: list[str] = []
@@ -779,6 +804,7 @@ def build_advisor_summary(account: models.Account, transactions: list[models.Tra
     savings_rate_expense = expense_by_month.get(savings_rate_month, 0.0) if savings_rate_month else 0.0
     savings_rate = ((savings_rate_income - savings_rate_expense) / savings_rate_income * 100) if savings_rate_income > 0 else 0.0
 
+    base_score_message = build_score_message(label, component_scores)
     recommendations = build_recommendations(
         category_drilldowns=category_drilldowns,
         recent_anomalies=recent_anomalies,
@@ -788,10 +814,12 @@ def build_advisor_summary(account: models.Account, transactions: list[models.Tra
     )
 
     top_categories = build_top_categories(category_drilldowns)
-    narrative = generate_advisor_narrative(
+    language_pack = generate_advisor_language_pack(
         account_name=account.name,
         score=score,
         label=label,
+        score_message=base_score_message,
+        score_reasons=score_reasons,
         recent_months=recent_months,
         current_month=latest_month,
         current_month_expenses=current_month_expenses,
@@ -808,12 +836,12 @@ def build_advisor_summary(account: models.Account, transactions: list[models.Tra
         "score": {
             "value": score,
             "label": label,
-            "message": build_score_message(label, component_scores),
+            "message": language_pack["score_message"],
             "reasons": score_reasons,
         },
-        "narrative": narrative,
+        "narrative": language_pack["narrative"],
         "highlights": highlights[:4],
-        "recommendations": recommendations,
+        "recommendations": language_pack["recommendations"],
         "stats": {
             "current_month": latest_month,
             "current_month_expenses": round_money(current_month_expenses),

@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   ResponsiveContainer,
   XAxis,
@@ -12,13 +13,13 @@ import {
   PieChart,
   Pie,
   Cell,
-  Scatter,
 } from "recharts";
 import { AlertTriangle, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import {
   buildApiUrl,
   getAccessToken,
   getDefaultAccountId,
+  isFirstTimeGreetingSession,
   setStoredAccountId,
 } from "@/lib/api";
 
@@ -83,47 +84,6 @@ function formatShortDate(dateStr: string) {
     day: "2-digit",
     month: "short",
   })
-}
-
-function renderBalanceTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload?: BalancePoint }>;
-  label?: string;
-}) {
-  if (!active || !payload?.length) {
-    return null;
-  }
-
-  const point = payload[0]?.payload;
-  if (!point) {
-    return null;
-  }
-
-  return (
-    <div
-      style={{
-        backgroundColor: "#081427",
-        border: "1px solid #1f2c4d",
-        borderRadius: "16px",
-        color: "#e2e8f0",
-        padding: "12px 14px",
-      }}
-    >
-      <p className="text-sm font-medium text-white">{formatShortDate(label ?? point.date)}</p>
-      <p className="mt-1 text-sm text-slate-200">
-        Balance: £{Number(point.balance).toLocaleString()}
-      </p>
-      {point.anomaly ? (
-        <p className="mt-2 text-sm font-medium text-red-400">
-          Unusual spending detected
-        </p>
-      ) : null}
-    </div>
-  );
 }
 
 type MonthlySummary = {
@@ -219,6 +179,11 @@ export default function DashboardPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [isFirstTimeSession, setIsFirstTimeSession] = useState(false);
+
+  useEffect(() => {
+    setIsFirstTimeSession(isFirstTimeGreetingSession());
+  }, []);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -358,11 +323,6 @@ export default function DashboardPage() {
     });
   }, [selectedCategory, selectedRange.endDate, selectedRange.startDate, transactions]);
 
-  const anomalyPoints = useMemo(
-    () => balanceData.filter((point) => point.anomaly),
-    [balanceData]
-  );
-
   const unusualTransactions = useMemo(() => {
     const start = selectedRange.startDate ? new Date(selectedRange.startDate) : null;
     const end = selectedRange.endDate ? new Date(selectedRange.endDate) : null;
@@ -394,6 +354,38 @@ export default function DashboardPage() {
 
   if (loading) return <div className="p-8 text-white">Loading...</div>;
   if (!summary) return <div className="p-8 text-white">No account found.</div>;
+  if (summary.transaction_count === 0) {
+    return (
+      <div className="text-white space-y-8">
+        <div>
+          <h1 className="text-4xl font-bold">
+            {isFirstTimeSession ? `Welcome, ${userName}` : `Welcome back, ${userName}`}
+          </h1>
+          <p className="mt-2 text-gray-400">Here&apos;s your financial overview</p>
+        </div>
+
+        <div className="rounded-3xl border border-cyan-500/20 bg-cyan-500/10 p-8">
+          <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/70">No financial data yet</p>
+          <h2 className="mt-3 text-3xl font-semibold text-white">
+            Upload transactions to unlock your dashboard
+          </h2>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
+            Upload transactions to view balance trends, spending categories, unusual
+            transactions, and monthly financial summaries for this account.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Link
+              href="/transactions"
+              className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+            >
+              Upload Transactions
+            </Link>
+            <p className="text-sm text-slate-400">Supported: CSV bank exports</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="text-white space-y-10">
@@ -401,10 +393,10 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
         <h1 className="text-4xl font-bold">
-          Welcome back, {userName}
+          {isFirstTimeSession ? `Welcome, ${userName}` : `Welcome back, ${userName}`}
         </h1>
         <p className="text-gray-400 mt-2">
-          Here’s your financial overview
+          Here&apos;s your financial overview
         </p>
         </div>
 
@@ -522,8 +514,8 @@ export default function DashboardPage() {
                   axisLine={false}
                 />
                 <Tooltip
-                  formatter={(value: number) => [`£${Number(value).toLocaleString()}`, "Balance"]}
-                  labelFormatter={(label: string) => formatShortDate(label)}
+                  formatter={(value: number | string | undefined) => [`£${Number(value ?? 0).toLocaleString()}`, "Balance"]}
+                  labelFormatter={(label: React.ReactNode) => formatShortDate(String(label ?? ""))}
                   contentStyle={{
                     backgroundColor: "#081427",
                     border: "1px solid #1f2c4d",
@@ -578,7 +570,7 @@ export default function DashboardPage() {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number, _name, entry: { payload?: CategoryBreakdown }) => {
+                    formatter={(value: number | string | undefined, _name, entry: { payload?: CategoryBreakdown }) => {
                       const percentage = entry?.payload?.percentage ?? 0;
                       const category = entry?.payload?.category ?? "Category";
                       return [`£${Number(value).toLocaleString()} (${percentage}%)`, category];
@@ -783,3 +775,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

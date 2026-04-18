@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import {
   buildApiUrl,
+  getErrorMessageFromResponse,
   getAccessToken,
   getDefaultAccountId,
   setStoredAccountId,
@@ -276,8 +278,9 @@ export default function AdvisorPage() {
         });
 
         if (!res.ok) {
-          const message = await res.text();
-          throw new Error(message || "Failed to load advisor insights");
+          throw new Error(
+            await getErrorMessageFromResponse(res, "Failed to load advisor insights."),
+          );
         }
 
         const json: AdvisorSummary = await res.json();
@@ -337,6 +340,41 @@ export default function AdvisorPage() {
           <p className="mt-2 text-sm text-slate-400">
             Upload transactions first so the advisor can compare months, detect recurring payments, and explain unusual spending.
           </p>
+        </div>
+      </section>
+    );
+  }
+
+  if (data.stats.analysis_months === 0) {
+    return (
+      <section className="space-y-6 text-white">
+        <div>
+          <h1 className="text-4xl font-bold">SmartSpend Advisor</h1>
+          <p className="mt-2 text-slate-400">
+            Personalized financial suggestions powered by your uploaded transaction history.
+          </p>
+        </div>
+
+        <div className="rounded-3xl border border-cyan-500/20 bg-cyan-500/10 p-8">
+          <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/70">
+            Advisor insights need real transaction history
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold text-white">
+            Upload transactions to activate SmartSpend Advisor
+          </h2>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
+            Once you upload transactions, SmartSpend Advisor can generate financial
+            health insights, recurring-payment detection, unusual spending explanations,
+            and personalized recommendations.
+          </p>
+          <div className="mt-6">
+            <Link
+              href="/transactions"
+              className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+            >
+              Upload Transactions
+            </Link>
+          </div>
         </div>
       </section>
     );
@@ -405,7 +443,7 @@ export default function AdvisorPage() {
             <div>
               <h2 className="text-xl font-semibold">Advisor Summary</h2>
               <p className="mt-1 text-sm text-slate-400">
-                {data.narrative.source === "llm" ? "LLM narrative with cached account context" : "Rule-based narrative summary"}
+                A concise summary of the strongest recent account patterns.
               </p>
             </div>
             <div className="rounded-2xl bg-cyan-500/10 p-3">
@@ -416,6 +454,11 @@ export default function AdvisorPage() {
           <p className="mt-5 text-sm leading-7 text-slate-200">{data.narrative.summary}</p>
 
           <div className="mt-5 flex flex-wrap gap-2">
+            {data.narrative.source === "llm" ? (
+              <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-200">
+                AI-assisted explanation
+              </span>
+            ) : null}
             <span className="rounded-full border border-[#21304f] bg-[#081427] px-3 py-1 text-xs text-slate-300">
               Recent window: {data.stats.recent_period_months} months
             </span>
@@ -605,12 +648,12 @@ export default function AdvisorPage() {
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="rounded-3xl border border-[#1f2c4d] bg-[#0f1b33] p-6">
-            <h2 className="text-xl font-semibold">Top Spend Categories</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Largest categories across the recent analysis window.
-            </p>
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-[#1f2c4d] bg-[#0f1b33] p-6">
+              <h2 className="text-xl font-semibold">Top Spend Categories</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Largest categories across the recent analysis window.
+              </p>
 
             <div className="mt-5 space-y-3">
               {data.top_categories.length > 0 ? (
@@ -687,55 +730,11 @@ export default function AdvisorPage() {
                 <p className="rounded-2xl border border-[#21304f] bg-[#081427] p-4 text-sm text-slate-400">
                   No strong recurring-payment patterns were detected yet.
                 </p>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-[#1f2c4d] bg-[#0f1b33] p-6">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-semibold">Recent Anomaly Watchlist</h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  Unusual recent expense transactions detected from your uploaded data.
-                </p>
+                )}
               </div>
-              <AlertTriangle size={18} className="text-amber-300" />
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {data.recent_anomalies.length > 0 ? (
-                data.recent_anomalies.map((anomaly) => (
-                  <div key={anomaly.id} className="min-w-0 rounded-2xl border border-[#21304f] bg-[#081427] p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-white">{anomaly.description}</p>
-                        <p className="mt-1 text-sm text-slate-400">
-                          {formatDate(anomaly.date)} | {anomaly.category}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {anomaly.reasons.map((reason) => (
-                            <span
-                              key={`${anomaly.id}-${reason}`}
-                              className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-200"
-                            >
-                              {reason}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <p className="shrink-0 text-sm font-semibold text-rose-300">{formatCurrency(anomaly.amount)}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="rounded-2xl border border-[#21304f] bg-[#081427] p-4 text-sm text-slate-400">
-                  No recent unusual expenses were detected in the latest analysis window.
-                </p>
-              )}
             </div>
           </div>
         </div>
-      </div>
-    </section>
-  );
-}
+      </section>
+    );
+  }

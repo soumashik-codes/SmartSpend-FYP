@@ -19,7 +19,12 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { buildApiUrl, clearStoredAccountId } from "@/lib/api";
+import { buildApiUrl, clearAuthSession } from "@/lib/api";
+
+type SidebarUser = {
+  email: string;
+  full_name: string | null;
+};
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -35,7 +40,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<SidebarUser | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
@@ -59,8 +64,7 @@ export default function Sidebar() {
         });
 
         if (!res.ok) {
-          localStorage.removeItem("access_token");
-          clearStoredAccountId();
+          clearAuthSession();
           router.push("/login");
           return;
         }
@@ -74,10 +78,6 @@ export default function Sidebar() {
 
     fetchUser();
   }, [router]);
-
-  useEffect(() => {
-    setIsAccountMenuOpen(false);
-  }, [pathname, collapsed]);
 
   // ===============================
   // Generate Initials
@@ -97,8 +97,7 @@ export default function Sidebar() {
   // Logout
   // ===============================
   function handleLogout() {
-    localStorage.removeItem("access_token");
-    clearStoredAccountId();
+    clearAuthSession();
     router.push("/login");
   }
 
@@ -132,7 +131,10 @@ export default function Sidebar() {
             </div>
 
             <button
-              onClick={() => setCollapsed(!collapsed)}
+              onClick={() => {
+                setCollapsed(!collapsed);
+                setIsAccountMenuOpen(false);
+              }}
               className="text-gray-400 hover:text-white transition"
             >
               {collapsed ? (
@@ -154,6 +156,7 @@ export default function Sidebar() {
                 <Link
                   key={item.name}
                   href={item.href}
+                  onClick={() => setIsAccountMenuOpen(false)}
                   className={`group flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200
                     ${
                       isActive
@@ -178,6 +181,7 @@ export default function Sidebar() {
             <div className="absolute bottom-full left-5 right-5 mb-3 space-y-2 rounded-xl border border-[var(--border-color)] bg-[#151f38] p-2 shadow-2xl">
               <Link
                 href="/settings#profile"
+                onClick={() => setIsAccountMenuOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
               >
                 <UserCircle2 size={16} />
@@ -185,13 +189,17 @@ export default function Sidebar() {
               </Link>
               <Link
                 href="/settings"
+                onClick={() => setIsAccountMenuOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
               >
                 <Settings size={16} />
                 Settings
               </Link>
               <button
-                onClick={handleLogout}
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  handleLogout();
+                }}
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-red-500/10 hover:text-red-300"
               >
                 <LogOut size={16} />

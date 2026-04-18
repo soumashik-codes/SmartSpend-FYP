@@ -1,23 +1,24 @@
 import re
 from typing import Dict, List, Optional
+
 from PIL import Image, ImageOps
 import pytesseract
+from pytesseract import TesseractNotFoundError
 
 
 DATE_PATTERNS = [
-    r"\b(\d{2}[\/\-]\d{2}[\/\-]\d{2,4})\b",     # 03/12/2025, 03-12-25
-    r"\b(\d{4}[\/\-]\d{2}[\/\-]\d{2})\b",       # 2025-12-03
+    r"\b(\d{2}[\/\-]\d{2}[\/\-]\d{2,4})\b",
+    r"\b(\d{4}[\/\-]\d{2}[\/\-]\d{2})\b",
 ]
 
 TOTAL_PATTERNS = [
-    r"\bTOTAL\b\s*[:\-]?\s*£?\s*(\d+\.\d{2})",
-    r"\bAMOUNT\s+DUE\b\s*[:\-]?\s*£?\s*(\d+\.\d{2})",
-    r"\bBALANCE\s+DUE\b\s*[:\-]?\s*£?\s*(\d+\.\d{2})",
+    r"\bTOTAL\b\s*[:\-]?\s*Â£?\s*(\d+\.\d{2})",
+    r"\bAMOUNT\s+DUE\b\s*[:\-]?\s*Â£?\s*(\d+\.\d{2})",
+    r"\bBALANCE\s+DUE\b\s*[:\-]?\s*Â£?\s*(\d+\.\d{2})",
 ]
 
-PRICE_LINE = re.compile(r"(.*?)(£?\s*\d+\.\d{2})\s*$")
-MONEY = re.compile(r"£?\s*(\d+\.\d{2})")
-
+PRICE_LINE = re.compile(r"(.*?)(Â£?\s*\d+\.\d{2})\s*$")
+MONEY = re.compile(r"Â£?\s*(\d+\.\d{2})")
 
 
 def _preprocess_basic(img: Image.Image) -> Image.Image:
@@ -36,10 +37,16 @@ def _preprocess_threshold(img: Image.Image) -> Image.Image:
 
 def ocr_image_to_text(image: Image.Image) -> str:
     img_basic = _preprocess_basic(image)
-    text_basic = pytesseract.image_to_string(img_basic)
+    try:
+        text_basic = pytesseract.image_to_string(img_basic)
+    except TesseractNotFoundError as exc:
+        raise RuntimeError("Receipt OCR is not available on this server.") from exc
 
     img_thresh = _preprocess_threshold(image)
-    text_thresh = pytesseract.image_to_string(img_thresh)
+    try:
+        text_thresh = pytesseract.image_to_string(img_thresh)
+    except TesseractNotFoundError as exc:
+        raise RuntimeError("Receipt OCR is not available on this server.") from exc
 
     basic_prices = len(re.findall(r"\d+\.\d{2}", text_basic))
     thresh_prices = len(re.findall(r"\d+\.\d{2}", text_thresh))
@@ -68,12 +75,10 @@ def extract_total(text: str) -> Optional[float]:
 
     for line in lines:
         if "TOTAL" in line:
-            # Try normal decimal format first
             match = re.search(r"(\d+\.\d{2})", line)
             if match:
                 return float(match.group(1))
 
-            # Try space-separated decimal like 28 34
             match_space = re.search(r"(\d+)\s+(\d{2})", line)
             if match_space:
                 whole = match_space.group(1)
@@ -86,7 +91,7 @@ def extract_total(text: str) -> Optional[float]:
 def extract_items(lines: List[str]) -> List[Dict]:
     items = []
 
-    SKIP_KEYWORDS = [
+    skip_keywords = [
         "SUBTOTAL",
         "AMOUNT DUE",
         "BALANCE DUE",
@@ -109,12 +114,9 @@ def extract_items(lines: List[str]) -> List[Dict]:
             continue
 
         up = s.upper()
-
-        # Skip headers/footers/payment lines
-        if any(k in up for k in SKIP_KEYWORDS):
+        if any(k in up for k in skip_keywords):
             continue
 
-        # Don't treat TOTAL as item
         if "TOTAL" in up:
             continue
 
@@ -131,7 +133,7 @@ def extract_items(lines: List[str]) -> List[Dict]:
 
         try:
             line_total = float(m2.group(1))
-        except:
+        except Exception:
             continue
 
         qty = 1.0
@@ -145,12 +147,14 @@ def extract_items(lines: List[str]) -> List[Dict]:
         if len(name_part) < 2:
             continue
 
-        items.append({
-            "name": name_part.title(),
-            "qty": qty,
-            "unit_price": unit_price,
-            "line_total": line_total
-        })
+        items.append(
+            {
+                "name": name_part.title(),
+                "qty": qty,
+                "unit_price": unit_price,
+                "line_total": line_total,
+            }
+        )
 
     return items
 
@@ -164,7 +168,6 @@ def extract_receipt(image: Image.Image) -> Dict:
     total = extract_total(raw)
     items = extract_items(lines)
 
-    # NEW: Calculate total from items
     calculated_total = round(sum(item["line_total"] for item in items), 2) if items else 0.0
 
     difference = None
@@ -182,5 +185,5 @@ def extract_receipt(image: Image.Image) -> Dict:
         "difference": difference,
         "verified": verified,
         "items": items,
-        "raw_text": raw
+        "raw_text": raw,
     }
