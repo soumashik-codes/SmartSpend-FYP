@@ -48,6 +48,41 @@ const PERIODS = [
   { label: "1 Year", months: 12 },
 ];
 
+function parseForecastMonthLabel(value: string) {
+  const normalized = `${value}-01`;
+  const date = new Date(normalized);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+}
+
+function formatForecastAxisLabel(value: string) {
+  const date = parseForecastMonthLabel(value);
+  if (!date) {
+    return value;
+  }
+
+  return date.toLocaleString("en-GB", {
+    month: "short",
+    year: "2-digit",
+  });
+}
+
+function formatForecastTooltipLabel(value: string) {
+  const date = parseForecastMonthLabel(value);
+  if (!date) {
+    return value;
+  }
+
+  return date.toLocaleString("en-GB", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export default function ForecastPage() {
   const [months, setMonths] = useState<number>(6);
   const [loading, setLoading] = useState(true);
@@ -175,12 +210,6 @@ export default function ForecastPage() {
   const expectedGrowth = data.expected_growth ?? 0;
   const hasLimitedHistory = (data.history_months ?? 0) > 0 && (data.history_months ?? 0) < 6;
   const isFallbackForecast = data.forecast_method !== "sarimax";
-  const confidenceTone =
-    data.forecast_confidence === "High"
-      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
-      : data.forecast_confidence === "Medium"
-        ? "border-sky-500/20 bg-sky-500/10 text-sky-200"
-        : "border-amber-500/20 bg-amber-500/10 text-amber-200";
 
   return (
     <div className="text-white space-y-8">
@@ -246,17 +275,6 @@ export default function ForecastPage() {
         <p className="mb-4 text-sm text-slate-400">
           Forecasts are estimated from monthly closing balances for your account.
         </p>
-        <div className="mb-4 flex flex-wrap gap-2">
-          <span className="rounded-full border border-[#21304f] bg-[#081427] px-3 py-1 text-xs text-slate-300">
-            Method: {data.forecast_method_label ?? (isFallbackForecast ? "Baseline trend" : "SARIMAX time-series model")}
-          </span>
-          <span className={`rounded-full border px-3 py-1 text-xs ${confidenceTone}`}>
-            Confidence: {data.forecast_confidence ?? "Low"}
-          </span>
-          <span className="rounded-full border border-[#21304f] bg-[#081427] px-3 py-1 text-xs text-slate-300">
-            History used: {data.history_months ?? 0} months
-          </span>
-        </div>
         {hasLimitedHistory || isFallbackForecast ? (
           <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
             {data.forecast_reliability_note || "This forecast is using a simplified fallback model because the account history is limited or unstable."}
@@ -285,7 +303,12 @@ export default function ForecastPage() {
               </defs>
 
               <CartesianGrid stroke="#1f2c4d" strokeDasharray="3 3" />
-              <XAxis dataKey="date" stroke="#94a3b8" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#94a3b8"
+                  interval={1}
+                  tickFormatter={formatForecastAxisLabel}
+                />
               <YAxis stroke="#94a3b8" />
               <Tooltip
                 contentStyle={{
@@ -294,6 +317,7 @@ export default function ForecastPage() {
                   borderRadius: 12,
                   color: "white",
                 }}
+                labelFormatter={(label) => formatForecastTooltipLabel(String(label ?? ""))}
                 formatter={(value: number | string | undefined) => [`£${Number(value ?? 0).toLocaleString()}`, ""]}
               />
               <Legend />

@@ -8,7 +8,6 @@ import {
   Receipt,
   Lightbulb,
   SlidersHorizontal,
-  ArrowRight,
   Shield,
   Zap,
   BarChart3,
@@ -49,10 +48,8 @@ const FEATURES = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0a1124] to-[#050816] text-white overflow-x-hidden">
-
-      {/* NAV */}
-      <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-black/30 backdrop-blur-xl">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-[#050816] via-[#0a1124] to-[#050816] text-white">
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-black/30 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500">
@@ -69,104 +66,99 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/signup"
-              className="bg-green-500 hover:bg-green-600 transition px-4 py-2 rounded-lg text-sm font-semibold"
+              className="rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold transition hover:bg-green-600"
             >
-              Get Started →
+              Get Started
             </Link>
           </div>
         </div>
       </header>
 
-      {/* HERO */}
-      <section className="pt-32 pb-24 px-6 text-center max-w-4xl mx-auto">
+      <section className="mx-auto max-w-4xl px-6 pb-24 pt-32 text-center">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/10 px-4 py-1.5 text-xs font-medium text-green-400">
           <Zap className="h-3 w-3" />
           AI-Powered Finance Tracking
         </div>
 
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold leading-[1.1]">
-          Take Control of Your{" "}
-          <span className="text-green-400">Finances</span>
+        <h1 className="text-5xl font-extrabold leading-[1.1] sm:text-6xl lg:text-7xl">
+          Take Control of Your <span className="text-green-400">Finances</span>
         </h1>
 
-        <p className="mt-6 text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
+        <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-400">
           SmartSpend uses artificial intelligence to categorize transactions,
           predict spending, scan receipts, and give you actionable financial
           advice - all in one beautiful dashboard.
         </p>
 
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Link
             href="/signup"
-            className="bg-green-500 hover:bg-green-600 transition px-8 py-3 rounded-lg font-semibold"
+            className="rounded-lg bg-green-500 px-8 py-3 font-semibold transition hover:bg-green-600"
           >
-            Start for Free →
+            Start for Free
           </Link>
 
           <a
             href="#features"
-            className="border border-white/10 hover:border-white/30 transition px-8 py-3 rounded-lg"
+            className="rounded-lg border border-white/10 px-8 py-3 transition hover:border-white/30"
           >
             See Features
           </a>
         </div>
       </section>
 
-      {/* FEATURES */}
-      <section id="features" className="py-24 px-6 max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold">
+      <section id="features" className="mx-auto max-w-6xl px-6 py-24">
+        <div className="mb-16 text-center">
+          <h2 className="text-3xl font-bold sm:text-4xl">
             Everything You Need to{" "}
             <span className="text-green-400">Master Your Money</span>
           </h2>
-          <p className="mt-4 text-gray-400 max-w-xl mx-auto">
+          <p className="mx-auto mt-4 max-w-xl text-gray-400">
             Powerful tools backed by AI to help you understand, predict, and
             optimize your personal finances.
           </p>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f, i) => (
+          {FEATURES.map((feature, index) => (
             <motion.div
-              key={f.title}
+              key={feature.title}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
+              transition={{ delay: index * 0.1 }}
               viewport={{ once: true }}
-              className="bg-[#0f1b33] border border-[#1f2c4d] rounded-xl p-6 hover:border-green-400/30 transition"
+              className="rounded-xl border border-[#1f2c4d] bg-[#0f1b33] p-6 transition hover:border-green-400/30"
             >
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/20 text-green-400">
-                <f.icon className="h-5 w-5" />
+                <feature.icon className="h-5 w-5" />
               </div>
 
-              <h3 className="text-lg font-semibold">{f.title}</h3>
-              <p className="mt-2 text-sm text-gray-400">{f.desc}</p>
+              <h3 className="text-lg font-semibold">{feature.title}</h3>
+              <p className="mt-2 text-sm text-gray-400">{feature.desc}</p>
             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-24 px-6 text-center">
+      <section className="px-6 py-24 text-center">
         <div className="mx-auto max-w-3xl rounded-2xl border border-green-500/20 bg-green-500/10 p-12">
           <h2 className="text-3xl font-bold">Ready to SmartSpend?</h2>
-          <p className="mt-4 text-gray-400 max-w-lg mx-auto">
+          <p className="mx-auto mt-4 max-w-lg text-gray-400">
             Join thousands of users who have transformed their relationship with
             money. Free to start, no credit card required.
           </p>
 
           <Link
             href="/signup"
-            className="inline-block mt-8 bg-green-500 hover:bg-green-600 transition px-10 py-3 rounded-lg font-semibold"
+            className="mt-8 inline-block rounded-lg bg-green-500 px-10 py-3 font-semibold transition hover:bg-green-600"
           >
-            Create Your Account →
+            Create Your Account
           </Link>
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="border-t border-white/10 py-8 px-6">
-        <div className="mx-auto max-w-6xl flex items-center justify-between">
+      <footer className="border-t border-white/10 px-6 py-8">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded bg-green-500">
               <Wallet className="h-3 w-3 text-black" />
@@ -179,7 +171,6 @@ export default function LandingPage() {
           </p>
         </div>
       </footer>
-
     </div>
   );
 }

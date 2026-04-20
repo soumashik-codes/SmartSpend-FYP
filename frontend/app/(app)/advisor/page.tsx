@@ -170,6 +170,10 @@ function formatMonth(value: string | null) {
   });
 }
 
+function humanizeEmbeddedMonths(text: string) {
+  return text.replace(/\b(\d{4}-\d{2})\b/g, (match) => formatMonth(match));
+}
+
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -311,7 +315,7 @@ export default function AdvisorPage() {
     return (
       <section className="space-y-6 text-white">
         <div>
-          <h1 className="text-4xl font-bold">SmartSpend Advisor</h1>
+          <h1 className="text-4xl font-bold">Financial Advisor</h1>
           <p className="mt-2 text-slate-400">
             Personalized financial suggestions powered by your uploaded transaction history.
           </p>
@@ -329,7 +333,7 @@ export default function AdvisorPage() {
     return (
       <section className="space-y-6 text-white">
         <div>
-          <h1 className="text-4xl font-bold">SmartSpend Advisor</h1>
+          <h1 className="text-4xl font-bold">Financial Advisor</h1>
           <p className="mt-2 text-slate-400">
             Personalized financial suggestions powered by your uploaded transaction history.
           </p>
@@ -349,7 +353,7 @@ export default function AdvisorPage() {
     return (
       <section className="space-y-6 text-white">
         <div>
-          <h1 className="text-4xl font-bold">SmartSpend Advisor</h1>
+          <h1 className="text-4xl font-bold">Financial Advisor</h1>
           <p className="mt-2 text-slate-400">
             Personalized financial suggestions powered by your uploaded transaction history.
           </p>
@@ -360,10 +364,10 @@ export default function AdvisorPage() {
             Advisor insights need real transaction history
           </p>
           <h2 className="mt-3 text-3xl font-semibold text-white">
-            Upload transactions to activate SmartSpend Advisor
+            Upload transactions to activate Financial Advisor
           </h2>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-            Once you upload transactions, SmartSpend Advisor can generate financial
+            Once you upload transactions, Financial Advisor can generate financial
             health insights, recurring-payment detection, unusual spending explanations,
             and personalized recommendations.
           </p>
@@ -384,7 +388,7 @@ export default function AdvisorPage() {
     <section className="space-y-8 text-white">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-4xl font-bold">SmartSpend Advisor</h1>
+          <h1 className="text-4xl font-bold">Financial Advisor</h1>
           <p className="mt-2 text-slate-400">
             Real analysis for {data.account_name} based on {data.stats.analysis_months} months of uploaded transactions.
           </p>
@@ -430,7 +434,7 @@ export default function AdvisorPage() {
                   key={reason}
                   className="min-w-0 rounded-2xl border border-[#21304f] bg-[#0a1428]/90 px-4 py-3 text-sm leading-6 text-slate-300"
                 >
-                  {reason}
+                  {humanizeEmbeddedMonths(reason)}
                 </div>
               ))}
               </div>
@@ -441,7 +445,7 @@ export default function AdvisorPage() {
         <div className="min-w-0 rounded-3xl border border-[#1f2c4d] bg-[#0f1b33] p-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold">Advisor Summary</h2>
+              <h2 className="text-xl font-semibold">Financial Summary</h2>
               <p className="mt-1 text-sm text-slate-400">
                 A concise summary of the strongest recent account patterns.
               </p>
@@ -451,7 +455,9 @@ export default function AdvisorPage() {
             </div>
           </div>
 
-          <p className="mt-5 text-sm leading-7 text-slate-200">{data.narrative.summary}</p>
+          <p className="mt-5 text-sm leading-7 text-slate-200">
+            {humanizeEmbeddedMonths(data.narrative.summary)}
+          </p>
 
           <div className="mt-5 flex flex-wrap gap-2">
             {data.narrative.source === "llm" ? (
@@ -531,7 +537,9 @@ export default function AdvisorPage() {
 
                   <div>
                     <h3 className="text-lg font-semibold text-white">{highlight.title}</h3>
-                    <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">{highlight.detail}</p>
+                    <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">
+                      {humanizeEmbeddedMonths(highlight.detail)}
+                    </p>
                   </div>
                 </div>
 
@@ -571,7 +579,9 @@ export default function AdvisorPage() {
                   <div className="mt-0.5 rounded-full bg-emerald-500/10 p-1.5">
                     <Lightbulb size={14} className="text-emerald-300" />
                   </div>
-                  <p className="text-sm leading-6 text-slate-200">{recommendation}</p>
+                  <p className="text-sm leading-6 text-slate-200">
+                    {humanizeEmbeddedMonths(recommendation)}
+                  </p>
                 </div>
               ))}
             </div>

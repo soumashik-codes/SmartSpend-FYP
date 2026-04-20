@@ -60,10 +60,7 @@ def _fallback_narrative(
         savings_text = f"spending exceeded income by about {abs(savings_rate):.0f}%"
     else:
         savings_text = f"the estimated savings rate was {savings_rate:.0f}%"
-    if label == "Needs attention":
-        opening_text = f'Financial health is currently rated "Needs attention" with a score of {score}.'
-    else:
-        opening_text = f"Financial health is currently rated {label.lower()} with a score of {score}."
+    opening_text = f'Financial health is currently rated "{label}" with a score of {score}.'
     summary = (
         f"{opening_text} "
         f"In {current_month_label}, spending was GBP {current_month_expenses:,.2f} and {savings_text}. "

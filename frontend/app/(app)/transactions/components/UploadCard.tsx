@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { UploadCloud } from "lucide-react";
 import Papa from "papaparse";
 import {
@@ -14,7 +14,6 @@ import {
 type UploadCardProps = {
   previewRows: Transaction[];
   onPreviewReady: (result: CsvParseResult) => void;
-  onRegisterBrowseAction?: (openFilePicker: () => void) => void;
   onFileMetaReady?: (meta: { fileName: string; rawCsv: string }) => void;
   onSave: () => Promise<void>;
   isSaving: boolean;
@@ -26,7 +25,6 @@ type UploadCardProps = {
 export function UploadCard({
   previewRows,
   onPreviewReady,
-  onRegisterBrowseAction,
   onFileMetaReady,
   onSave,
   isSaving,
@@ -38,10 +36,6 @@ export function UploadCard({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [fileName, setFileName] = useState("");
   const [isParsing, setIsParsing] = useState(false);
-
-  useEffect(() => {
-    onRegisterBrowseAction?.(() => fileInputRef.current?.click());
-  }, [onRegisterBrowseAction]);
 
   async function handleFile(file: File) {
     setFileName(file.name);
@@ -104,7 +98,7 @@ export function UploadCard({
           <h2 className="text-xl font-semibold">Upload Transactions CSV</h2>
 
           <p className="text-sm text-gray-400">
-            Supported: CSV · AI automatically categorises and analyses spending
+            Supported: CSV bank export · AI automatically categorises and analyses spending
           </p>
 
           <span className="text-sm text-emerald-400 underline">Click to browse file</span>

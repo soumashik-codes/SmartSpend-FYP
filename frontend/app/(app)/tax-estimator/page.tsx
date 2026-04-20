@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Calculator, ChevronDown, ChevronUp, PoundSterling } from "lucide-react";
 
 import { buildApiUrl } from "@/lib/api";
@@ -69,15 +69,6 @@ function annualiseGross(value: number, payFrequency: PayFrequency) {
   return value;
 }
 
-function convertAnnualToFrequency(value: number, payFrequency: PayFrequency) {
-  if (payFrequency === "monthly") return value / 12;
-  if (payFrequency === "weekly") return value / 52;
-  if (payFrequency === "every_4_weeks") return value / 13;
-  if (payFrequency === "daily") return value / 260;
-  if (payFrequency === "hourly") return value / (40 * 52);
-  return value;
-}
-
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
@@ -119,12 +110,6 @@ export default function TaxEstimatorPage() {
 
   const grossValue = Number.parseFloat(gross);
   const annualGross = Number.isFinite(grossValue) ? annualiseGross(grossValue, payFrequency) : 0;
-  const takeHomeForSelectedFrequency = useMemo(() => {
-    if (!result) {
-      return 0;
-    }
-    return convertAnnualToFrequency(result.net_annual, payFrequency);
-  }, [payFrequency, result]);
 
   async function calculateTax() {
     setLoading(true);
@@ -241,9 +226,14 @@ export default function TaxEstimatorPage() {
       label: "Pension contributions",
       enabled: pensionEnabled,
       onToggle: () => setPensionEnabled((value) => !value),
-      summary: pensionEnabled && pensionValue
-        ? `${sentenceCase(pensionContributionType)} · ${pensionValueType === "percent" ? `${pensionValue}%` : formatCurrency(Number(pensionValue))}`
-        : "Not provided",
+      summary:
+        pensionEnabled && pensionValue
+          ? `${sentenceCase(pensionContributionType)} · ${
+              pensionValueType === "percent"
+                ? `${pensionValue}%`
+                : formatCurrency(Number(pensionValue))
+            }`
+          : "Not provided",
       body: (
         <div className="mt-4 rounded-xl border border-[#1f2c4d] bg-[#111c36] p-4">
           <div className="grid gap-4 md:grid-cols-2">
@@ -270,14 +260,14 @@ export default function TaxEstimatorPage() {
                 className="mt-2 w-full rounded-xl border border-[#1f2c4d] bg-[#0d1730] px-4 py-3 text-white outline-none transition focus:border-green-400"
               >
                 <option value="percent">Percent of gross pay</option>
-                <option value="amount">Annual amount (£)</option>
+                <option value="amount">Annual amount (GBP)</option>
               </select>
             </div>
           </div>
 
           <div className="mt-4">
             <label className="text-sm text-gray-400">
-              {pensionValueType === "percent" ? "Contribution percent" : "Annual contribution (£)"}
+              {pensionValueType === "percent" ? "Contribution percent" : "Annual contribution (GBP)"}
             </label>
             <input
               type="number"
@@ -363,7 +353,7 @@ export default function TaxEstimatorPage() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-400">Gross amount (£)</label>
+            <label className="text-sm text-gray-400">Gross amount (GBP)</label>
             <div className="relative mt-2">
               <PoundSterling size={18} className="absolute left-3 top-3 text-gray-400" />
               <input

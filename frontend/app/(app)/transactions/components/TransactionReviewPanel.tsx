@@ -126,7 +126,7 @@ export function TransactionReviewPanel({
                     type="checkbox"
                     checked={applyToFutureMerchant}
                     onChange={(event) => onApplyToFutureMerchantChange(event.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-[#36507b] bg-[#07111f] text-emerald-400 focus:ring-emerald-400"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#36507b] bg-[#07111f] text-emerald-400 focus:ring-emerald-400"
                   />
                   <span>Apply this category to future transactions from this merchant.</span>
                 </label>
@@ -136,7 +136,7 @@ export function TransactionReviewPanel({
                     type="checkbox"
                     checked={applyToAllMerchant}
                     onChange={(event) => onApplyToAllMerchantChange(event.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-[#36507b] bg-[#07111f] text-emerald-400 focus:ring-emerald-400"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#36507b] bg-[#07111f] text-emerald-400 focus:ring-emerald-400"
                   />
                   <span>{applyAllLabel}</span>
                 </label>

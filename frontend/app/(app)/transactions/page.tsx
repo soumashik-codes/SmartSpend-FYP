@@ -30,8 +30,6 @@ import {
 } from "./components/shared";
 
 export default function TransactionsPage() {
-  const uploadSectionRef = useRef<HTMLDivElement | null>(null);
-  const browseFileRef = useRef<(() => void) | null>(null);
   const [previewRows, setPreviewRows] = useState<Transaction[]>([]);
   const [savedRows, setSavedRows] = useState<Transaction[]>([]);
   const [search, setSearch] = useState("");
@@ -451,28 +449,12 @@ export default function TransactionsPage() {
             To unlock forecasts, AI insights, spending analysis, and advisor recommendations,
             upload your first bank statement CSV for this account.
           </p>
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={() => {
-                uploadSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                browseFileRef.current?.();
-              }}
-              className="rounded-lg bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-            >
-              Upload Transactions
-            </button>
-            <p className="text-sm text-slate-400">Supported: CSV bank exports</p>
-          </div>
         </div>
       ) : null}
 
-      <div ref={uploadSectionRef}>
+      <div>
         <UploadCard
           previewRows={previewRows}
-          onRegisterBrowseAction={(openFilePicker) => {
-            browseFileRef.current = openFilePicker;
-          }}
           onPreviewReady={(result: CsvParseResult) => {
             setPreviewRows(result.rows);
             setImportSummary(null);
