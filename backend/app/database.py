@@ -21,6 +21,9 @@ Base = declarative_base()
 
 
 def ensure_sqlite_transaction_columns():
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+
     inspector = inspect(engine)
     table_names = set(inspector.get_table_names())
 
